@@ -1,0 +1,53 @@
+{
+  "name": "superfastapi",
+  "version": "1.0.0",
+  "description": "A minimal command-line tool to quickly scaffold FastAPI projects with Poetry configuration",
+  "main": "src/cli.js",
+  "bin": {
+    "superfastapi": "./bin/superfastapi.js"
+  },
+  "scripts": {
+    "test": "jest",
+    "lint": "eslint src/ bin/ --ext .js",
+    "format": "prettier --write src/ bin/",
+    "start": "node bin/superfastapi.js"
+  },
+  "keywords": [
+    "fastapi",
+    "python",
+    "boilerplate",
+    "generator",
+    "cli",
+    "scaffold",
+    "poetry"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "bugs": {
+    "url": ""
+  },
+  "homepage": "",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "commander": "^11.0.0",
+    "handlebars": "^4.7.8",
+    "chalk": "^4.1.2"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "templates/",
+    "README.md"
+  ]
+}

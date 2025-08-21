@@ -1,0 +1,64 @@
+# {{PROJECT_NAME}}
+
+{{PROJECT_DESCRIPTION}}
+
+## Setup
+
+This project uses Poetry for dependency management. Make sure you have Poetry installed on your system.
+
+### Installation
+
+1. Install dependencies:
+```bash
+poetry install
+```
+
+2. Activate the virtual environment:
+```bash
+poetry shell
+```
+
+### Running the Application
+
+Start the development server:
+```bash
+poetry run uvicorn app.main:app --reload
+```
+
+The API will be available at `http://localhost:8000`
+
+### API Documentation
+
+Once the server is running, you can access:
+- Interactive API docs (Swagger UI): `http://localhost:8000/docs`
+- Alternative API docs (ReDoc): `http://localhost:8000/redoc`
+
+### Available Endpoints
+
+- `GET /` - Root endpoint
+- `GET /health` - Health check endpoint
+
+## Project Structure
+
+```
+{{PROJECT_NAME}}/
+├── app/
+│   ├── __init__.py
+│   └── main.py          # FastAPI application
+├── tests/
+│   └── __init__.py
+├── pyproject.toml       # Poetry configuration
+├── README.md
+└── .gitignore
+```
+
+## Environment Variables
+
+Create a `.env` file in the root directory for environment-specific configuration:
+
+```env
+# Add your environment variables here
+DEBUG=True
+DATABASE_URL=sqlite:///./app.db
+SECRET_KEY=your-secret-key-here
+```
