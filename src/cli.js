@@ -1,5 +1,6 @@
 const { Command } = require('commander');
 const chalk = require('chalk');
+const inquirer = require('inquirer');
 const { ProjectGenerator } = require('./generator');
 
 /**
@@ -45,14 +46,67 @@ Examples:
   }
 
   /**
+   * Prompt user for Supabase database integration
+   * @returns {Promise<boolean>} Whether to include Supabase database integration
+   */
+  async promptSupabaseDatabase() {
+    const { includeDatabase } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'includeDatabase',
+        message: 'Do you want to include Supabase database integration?',
+        default: false
+      }
+    ]);
+    return includeDatabase;
+  }
+
+  /**
+   * Prompt user for Supabase authentication integration
+   * @returns {Promise<boolean>} Whether to include Supabase authentication
+   */
+  async promptSupabaseAuth() {
+    const { includeAuth } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'includeAuth',
+        message: 'Do you want to include Supabase authentication?',
+        default: false
+      }
+    ]);
+    return includeAuth;
+  }
+
+  /**
    * Create a new FastAPI project
    * @param {string} projectName - Name of the project to create
+   * @param {Object} options - Options for project creation
+   * @param {boolean} options.skipPrompts - Skip interactive prompts (for testing)
+   * @param {boolean} options.supabaseDatabase - Include Supabase database integration
+   * @param {boolean} options.supabaseAuth - Include Supabase authentication
    */
-  async createProject(projectName) {
+  async createProject(projectName, options = {}) {
     try {
       console.log(chalk.blue(`🚀 Creating FastAPI project: ${projectName}`));
       
-      const generator = new ProjectGenerator(projectName);
+      let supabaseDatabase = false;
+      let supabaseAuth = false;
+      
+      if (options.skipPrompts) {
+        // Use provided options for testing
+        supabaseDatabase = options.supabaseDatabase || false;
+        supabaseAuth = options.supabaseAuth || false;
+      } else {
+        // Prompt for Supabase database integration
+        supabaseDatabase = await this.promptSupabaseDatabase();
+        
+        // Conditionally prompt for Supabase authentication if database is selected
+        if (supabaseDatabase) {
+          supabaseAuth = await this.promptSupabaseAuth();
+        }
+      }
+      
+      const generator = new ProjectGenerator(projectName, { supabaseDatabase, supabaseAuth });
       await generator.generate();
       
       console.log(chalk.green(`✅ Successfully created ${projectName}!`));

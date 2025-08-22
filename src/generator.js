@@ -10,10 +10,14 @@ const handlebars = require('handlebars');
  * directory creation, and file generation.
  */
 class ProjectGenerator {
-  constructor(projectName) {
+  constructor(projectName, options = {}) {
     this.projectName = projectName;
     this.projectPath = path.resolve(process.cwd(), projectName);
     this.templatesPath = path.resolve(__dirname, '..', 'templates');
+    
+    // Supabase feature flags
+    this.supabaseDatabase = options.supabaseDatabase || false;
+    this.supabaseAuth = options.supabaseAuth || false;
     
     // Template variables for handlebars rendering
     this.templateVars = {
@@ -22,7 +26,9 @@ class ProjectGenerator {
       AUTHOR_NAME: 'Your Name <your.email@example.com>',
       PYTHON_VERSION: '^3.11',
       FASTAPI_VERSION: '^0.104.1',
-      UVICORN_VERSION: '^0.24.0'
+      UVICORN_VERSION: '^0.24.0',
+      SUPABASE_DATABASE: this.supabaseDatabase,
+      SUPABASE_AUTH: this.supabaseAuth
     };
   }
 
