@@ -56,12 +56,7 @@ Examples:
       await generator.generate();
       
       console.log(chalk.green(`✅ Successfully created ${projectName}!`));
-      console.log(chalk.yellow(`
-Next steps:
-  cd ${projectName}
-  poetry install
-  poetry run uvicorn app.main:app --reload
-`));
+      
     } catch (error) {
       console.error(chalk.red(`❌ Error creating project: ${error.message}`));
       throw error;

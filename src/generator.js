@@ -42,12 +42,12 @@ class ProjectGenerator {
     // Generate all files from templates
     await this.generateFromTemplates();
     
-    console.log(chalk.green(`✅ FastAPI project '${this.projectName}' created successfully!`));
+    console.log(chalk.yellow(`✅ FastAPI project '${this.projectName}' created successfully!`));
     console.log(chalk.blue(`📁 Project directory: ${this.projectPath}`));
     console.log(chalk.yellow('\n🚀 Next steps:'));
     console.log(chalk.white(`  cd ${this.projectName}`));
     console.log(chalk.white('  poetry install'));
-    console.log(chalk.white('  poetry run uvicorn app.main:app --reload'));
+    console.log(chalk.green('  sh start.sh'));
   }
 
   /**
@@ -107,11 +107,21 @@ class ProjectGenerator {
         { template: 'pyproject.toml.hbs', output: 'pyproject.toml' },
         { template: 'README.md.hbs', output: 'README.md' },
         { template: '.gitignore.hbs', output: '.gitignore' },
-        
+        { template: 'example.env.hbs', output: 'example.env'},
+        { template: 'start.sh.hbs', output: 'start.sh' },
         // App directory and files
         { template: 'app/__init__.py.hbs', output: 'app/__init__.py' },
         { template: 'app/main.py.hbs', output: 'app/main.py' },
-        
+        { template: 'app/core/__init__.py.hbs', output: 'app/core/__init__.py'},
+        { template: 'app/core/config.py.hbs', output: 'app/core/config.py'},
+        { template: 'app/api/__init__.py.hbs', output: 'app/api/__init__.py' },
+        { template: 'app/api/routes/__init__.py.hbs', output: 'app/api/routes/__init__.py' },
+        { template: 'app/api/schemas/__init__.py.hbs', output: 'app/api/schemas/__init__.py' },
+        { template: 'app/services/__init__.py.hbs', output: 'app/services/__init__.py' },
+        { template: 'app/models/__init__.py.hbs', output: 'app/models/__init__.py' },
+        { template: 'app/db/__init__.py.hbs', output: 'app/db/__init__.py' },
+        { template: 'app/utils/__init__.py.hbs', output: 'app/utils/__init__.py' },
+
         // Tests directory and files
         { template: 'tests/__init__.py.hbs', output: 'tests/__init__.py' }
       ];
