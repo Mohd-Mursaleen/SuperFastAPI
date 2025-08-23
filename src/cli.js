@@ -84,8 +84,6 @@ Examples:
    * @param {boolean} supabaseAuth - Whether Supabase authentication was included
    */
   displayNextSteps(projectName, supabaseDatabase, supabaseAuth) {
-    console.log(chalk.blue('\n📋 Next steps:'));
-    console.log(`  1. ${chalk.cyan(`cd ${projectName}`)}`);
     console.log(`  2. ${chalk.cyan('cp example.env .env')}`);
     
     if (supabaseDatabase || supabaseAuth) {
@@ -114,11 +112,7 @@ Examples:
         console.log(`  • Review the database client in ${chalk.cyan('app/db/supabase.py')}`);
         console.log(`  • Configure Row Level Security (RLS) policies as needed`);
       }
-    } else {
-      console.log(`  3. ${chalk.cyan('poetry install')}`);
-      console.log(`  4. ${chalk.cyan('poetry run uvicorn app.main:app --reload')}`);
-    }
-    
+    } 
     console.log(chalk.blue('\n📚 Documentation:'));
     console.log(`  • Check the ${chalk.cyan('README.md')} for detailed setup instructions`);
     console.log(`  • Visit ${chalk.cyan('http://localhost:8000/docs')} for API documentation`);
@@ -160,7 +154,6 @@ Examples:
       const generator = new ProjectGenerator(projectName, { supabaseDatabase, supabaseAuth });
       await generator.generate();
       
-      console.log(chalk.green(`✅ Successfully created ${projectName}!`));
       
       // Display next steps
       this.displayNextSteps(projectName, supabaseDatabase, supabaseAuth);

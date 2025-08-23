@@ -69,7 +69,7 @@ class ProjectGenerator {
       }
     }
     
-    console.log(chalk.green('\n  sh start.sh'));
+    console.log(chalk.green('\n  🏃🏻‍♂️sh start.sh'));
   }
 
   /**
