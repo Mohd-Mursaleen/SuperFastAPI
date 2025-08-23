@@ -47,11 +47,11 @@ npm install
 ### Usage
 To generate a new FastAPI project, run:
 ```bash
-npx superfastapi <project-name>
+npx supfastapi <project-name>
 ```
 Or, if installed globally:
 ```bash
-superfastapi <project-name>
+supfastapi <project-name>
 ```
 Follow the CLI prompts to customize your project.
 
