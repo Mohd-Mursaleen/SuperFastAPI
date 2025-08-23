@@ -18,6 +18,10 @@ python-multipart = "^0.0.6"
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 python-dotenv = "^1.0.0"
+{{#if SUPABASE_DATABASE}}
+supabase = "^2.3.0"
+postgrest = "^0.13.0"
+{{/if}}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"

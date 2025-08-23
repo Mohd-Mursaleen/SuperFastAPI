@@ -1,0 +1,284 @@
+{{#if SUPABASE_AUTH}}
+"""
+Authentication middleware for FastAPI with Supabase integration.
+Handles JWT token validation and user context injection.
+"""
+
+from typing import Optional, Callable
+from fastapi import Request, Response, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
+import logging
+
+from app.services.auth import get_auth_service, AuthenticationError
+from app.models.user import UserResponse
+
+logger = logging.getLogger(__name__)
+
+# Security scheme for Bearer token
+security = HTTPBearer(auto_error=False)
+
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    """
+    Authentication middleware that validates JWT tokens and injects user context.
+    """
+    
+    def __init__(self, app, exclude_paths: Optional[list] = None):
+        super().__init__(app)
+        # Default paths that don't require authentication
+        self.exclude_paths = exclude_paths or [
+            "/",
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/health",
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/auth/reset-password",
+            "/api/auth/verify-email"
+        ]
+    
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        """
+        Process request and validate authentication if required.
+        
+        Args:
+            request: FastAPI request object
+            call_next: Next middleware/endpoint in chain
+            
+        Returns:
+            Response from next middleware/endpoint
+        """
+        # Skip authentication for excluded paths
+        if self._should_skip_auth(request.url.path):
+            return await call_next(request)
+        
+        # Extract and validate token
+        try:
+            user = await self._authenticate_request(request)
+            if user:
+                # Inject user into request state
+                request.state.user = user
+                request.state.authenticated = True
+            else:
+                request.state.user = None
+                request.state.authenticated = False
+                
+                # Return 401 for protected endpoints
+                if not self._is_optional_auth_path(request.url.path):
+                    return JSONResponse(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        content={
+                            "detail": "Authentication required",
+                            "code": "AUTHENTICATION_REQUIRED"
+                        }
+                    )
+        
+        except AuthenticationError as e:
+            logger.warning(f"Authentication error: {e.message}")
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={
+                    "detail": e.message,
+                    "code": e.code or "AUTHENTICATION_ERROR"
+                }
+            )
+        except Exception as e:
+            logger.error(f"Unexpected authentication error: {str(e)}")
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={
+                    "detail": "Internal authentication error",
+                    "code": "INTERNAL_AUTH_ERROR"
+                }
+            )
+        
+        return await call_next(request)
+    
+    def _should_skip_auth(self, path: str) -> bool:
+        """
+        Check if authentication should be skipped for this path.
+        
+        Args:
+            path: Request path
+            
+        Returns:
+            True if authentication should be skipped
+        """
+        return any(path.startswith(excluded) for excluded in self.exclude_paths)
+    
+    def _is_optional_auth_path(self, path: str) -> bool:
+        """
+        Check if authentication is optional for this path.
+        
+        Args:
+            path: Request path
+            
+        Returns:
+            True if authentication is optional
+        """
+        # Add paths where authentication is optional but user context is useful
+        optional_paths = [
+            "/api/public"  # Example: public endpoints that can use user context if available
+        ]
+        return any(path.startswith(optional) for optional in optional_paths)
+    
+    async def _authenticate_request(self, request: Request) -> Optional[UserResponse]:
+        """
+        Extract and validate authentication token from request.
+        
+        Args:
+            request: FastAPI request object
+            
+        Returns:
+            UserResponse if authentication successful, None otherwise
+            
+        Raises:
+            AuthenticationError: If authentication fails with specific error
+        """
+        # Try to get token from Authorization header
+        authorization = request.headers.get("Authorization")
+        
+        if not authorization:
+            return None
+        
+        if not authorization.startswith("Bearer "):
+            raise AuthenticationError("Invalid authorization header format", "INVALID_AUTH_HEADER")
+        
+        token = authorization.split(" ")[1]
+        
+        if not token:
+            raise AuthenticationError("Missing access token", "MISSING_TOKEN")
+        
+        # Validate token with auth service
+        auth_service = await get_auth_service()
+        user = await auth_service.get_user_from_token(token)
+        
+        if not user:
+            raise AuthenticationError("Invalid or expired token", "INVALID_TOKEN")
+        
+        return user
+
+
+async def get_current_user(request: Request) -> UserResponse:
+    """
+    Dependency to get current authenticated user from request.
+    
+    Args:
+        request: FastAPI request object
+        
+    Returns:
+        Current authenticated user
+        
+    Raises:
+        HTTPException: If user is not authenticated
+    """
+    if not hasattr(request.state, "authenticated") or not request.state.authenticated:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return request.state.user
+
+
+async def get_current_user_optional(request: Request) -> Optional[UserResponse]:
+    """
+    Dependency to get current user if authenticated, None otherwise.
+    
+    Args:
+        request: FastAPI request object
+        
+    Returns:
+        Current user if authenticated, None otherwise
+    """
+    if hasattr(request.state, "authenticated") and request.state.authenticated:
+        return request.state.user
+    return None
+
+
+async def verify_token(credentials: HTTPAuthorizationCredentials = security) -> UserResponse:
+    """
+    FastAPI dependency for token verification using HTTPBearer.
+    
+    Args:
+        credentials: HTTP authorization credentials
+        
+    Returns:
+        Authenticated user
+        
+    Raises:
+        HTTPException: If authentication fails
+    """
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    try:
+        auth_service = await get_auth_service()
+        user = await auth_service.get_user_from_token(credentials.credentials)
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        return user
+        
+    except AuthenticationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=e.message,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except Exception as e:
+        logger.error(f"Token verification error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal authentication error"
+        )
+
+
+def require_auth(func):
+    """
+    Decorator to require authentication for a route handler.
+    
+    Args:
+        func: Route handler function
+        
+    Returns:
+        Decorated function that requires authentication
+    """
+    async def wrapper(*args, **kwargs):
+        # This decorator can be used with route handlers
+        # The actual authentication is handled by middleware
+        return await func(*args, **kwargs)
+    
+    return wrapper
+
+
+def optional_auth(func):
+    """
+    Decorator to mark a route as having optional authentication.
+    
+    Args:
+        func: Route handler function
+        
+    Returns:
+        Decorated function with optional authentication
+    """
+    async def wrapper(*args, **kwargs):
+        # This decorator can be used to mark routes with optional auth
+        # The actual logic is handled by middleware
+        return await func(*args, **kwargs)
+    
+    return wrapper
+{{/if}}

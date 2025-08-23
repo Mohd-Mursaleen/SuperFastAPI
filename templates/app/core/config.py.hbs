@@ -1,1 +1,35 @@
-#Config.py
+from pydantic_settings import BaseSettings
+from typing import Optional
+
+
+class Settings(BaseSettings):
+    """Application settings with environment variable support."""
+    
+    # Application settings
+    app_name: str = "{{projectName}}"
+    debug: bool = False
+    
+{{#if supabaseDatabase}}
+    # Supabase settings
+    supabase_url: Optional[str] = None
+    supabase_anon_key: Optional[str] = None
+{{#if supabaseAuth}}
+    supabase_service_role_key: Optional[str] = None
+{{/if}}
+{{/if}}
+{{#unless supabaseDatabase}}
+{{#if supabaseAuth}}
+    # Supabase settings
+    supabase_url: Optional[str] = None
+    supabase_anon_key: Optional[str] = None
+    supabase_service_role_key: Optional[str] = None
+{{/if}}
+{{/unless}}
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+
+
+# Global settings instance
+settings = Settings()

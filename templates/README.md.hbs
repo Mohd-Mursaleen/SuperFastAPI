@@ -37,6 +37,18 @@ Once the server is running, you can access:
 
 - `GET /` - Root endpoint
 - `GET /health` - Health check endpoint
+{{#if SUPABASE_AUTH}}
+
+#### Authentication Endpoints
+
+- `POST /auth/register` - Register a new user
+- `POST /auth/login` - Login with email and password
+- `POST /auth/logout` - Logout current user
+- `POST /auth/refresh` - Refresh access token
+- `POST /auth/forgot-password` - Request password reset
+- `POST /auth/reset-password` - Reset password with token
+- `GET /auth/me` - Get current user profile
+{{/if}}
 
 ## Project Structure
 
@@ -44,7 +56,24 @@ Once the server is running, you can access:
 {{PROJECT_NAME}}/
 ├── app/
 │   ├── __init__.py
-│   └── main.py          # FastAPI application
+│   ├── main.py          # FastAPI application
+{{#if SUPABASE_DATABASE}}
+│   ├── core/
+│   │   └── config.py    # Configuration with Supabase settings
+│   ├── db/
+│   │   └── supabase.py  # Supabase client and utilities
+{{#if SUPABASE_AUTH}}
+│   ├── models/
+│   │   └── user.py      # User models and schemas
+│   ├── services/
+│   │   └── auth.py      # Authentication utilities
+│   ├── api/
+│   │   ├── middleware/
+│   │   │   └── auth.py  # Authentication middleware
+│   │   └── routes/
+│   │       └── auth.py  # Authentication endpoints
+{{/if}}
+{{/if}}
 ├── tests/
 │   └── __init__.py
 ├── pyproject.toml       # Poetry configuration
@@ -61,4 +90,226 @@ Create a `.env` file in the root directory for environment-specific configuratio
 DEBUG=True
 DATABASE_URL=sqlite:///./app.db
 SECRET_KEY=your-secret-key-here
+{{#if SUPABASE_DATABASE}}
+
+# Supabase Configuration
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+{{#if SUPABASE_AUTH}}
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+{{/if}}
+{{/if}}
 ```
+
+{{#if SUPABASE_DATABASE}}
+## Supabase Setup
+
+This project includes Supabase integration for database and authentication services.
+
+### 1. Create a Supabase Project
+
+1. Go to [Supabase](https://supabase.com) and create a new account or sign in
+2. Create a new project
+3. Wait for the project to be fully provisioned
+
+### 2. Get Your Supabase Credentials
+
+1. In your Supabase dashboard, go to **Settings** > **API**
+2. Copy your **Project URL** and **anon public** key
+3. Update your `.env` file with these values:
+   - `SUPABASE_URL`: Your project URL
+   - `SUPABASE_ANON_KEY`: Your anon public key
+{{#if SUPABASE_AUTH}}
+   - `SUPABASE_SERVICE_ROLE_KEY`: Your service role key (found in the same API settings page)
+{{/if}}
+
+### 3. Database Setup
+
+Your Supabase project comes with a PostgreSQL database. You can:
+
+1. **Use the Table Editor**: Go to **Table Editor** in your Supabase dashboard to create tables visually
+2. **Use SQL Editor**: Go to **SQL Editor** to run custom SQL queries
+3. **Use the API**: The generated code includes a Supabase client for database operations
+
+Example database operations:
+```python
+from app.db.supabase import get_supabase_client
+
+# Get the Supabase client
+supabase = await get_supabase_client()
+
+# Insert data
+result = supabase.table('your_table').insert({'column': 'value'}).execute()
+
+# Query data
+result = supabase.table('your_table').select('*').execute()
+
+# Update data
+result = supabase.table('your_table').update({'column': 'new_value'}).eq('id', 1).execute()
+
+# Delete data
+result = supabase.table('your_table').delete().eq('id', 1).execute()
+```
+
+### 4. Row Level Security (RLS)
+
+For production applications, enable Row Level Security:
+
+1. Go to **Authentication** > **Policies** in your Supabase dashboard
+2. Enable RLS for your tables
+3. Create policies to control data access
+
+Example RLS policy:
+```sql
+-- Allow users to read their own data
+CREATE POLICY "Users can read own data" ON your_table
+FOR SELECT USING (auth.uid() = user_id);
+
+-- Allow users to insert their own data
+CREATE POLICY "Users can insert own data" ON your_table
+FOR INSERT WITH CHECK (auth.uid() = user_id);
+```
+
+{{#if SUPABASE_AUTH}}
+## Authentication Flow
+
+This project includes a complete authentication system using Supabase Auth.
+
+### User Registration
+
+```bash
+curl -X POST "http://localhost:8000/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "securepassword123",
+    "full_name": "John Doe"
+  }'
+```
+
+### User Login
+
+```bash
+curl -X POST "http://localhost:8000/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "securepassword123"
+  }'
+```
+
+Response:
+```json
+{
+  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+  "token_type": "bearer",
+  "expires_in": 3600,
+  "refresh_token": "refresh_token_here",
+  "user": {
+    "id": "user-uuid",
+    "email": "user@example.com",
+    "full_name": "John Doe"
+  }
+}
+```
+
+### Accessing Protected Endpoints
+
+Include the access token in the Authorization header:
+
+```bash
+curl -X GET "http://localhost:8000/auth/me" \
+  -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+```
+
+### Password Reset Flow
+
+1. Request password reset:
+```bash
+curl -X POST "http://localhost:8000/auth/forgot-password" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+```
+
+2. Reset password with token (received via email):
+```bash
+curl -X POST "http://localhost:8000/auth/reset-password" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "reset_token_from_email",
+    "password": "newpassword123"
+  }'
+```
+
+### Token Refresh
+
+```bash
+curl -X POST "http://localhost:8000/auth/refresh" \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "your_refresh_token"}'
+```
+
+## Security Best Practices
+
+### Environment Variables
+- **Never commit your `.env` file** to version control
+- Use different Supabase projects for development, staging, and production
+- Rotate your service role key regularly
+- Use the anon key for client-side operations only
+
+### Authentication Security
+- **Password Requirements**: Enforce strong passwords (minimum 8 characters, mixed case, numbers, symbols)
+- **Rate Limiting**: The authentication endpoints include built-in rate limiting
+- **JWT Validation**: All protected endpoints validate JWT tokens automatically
+- **Session Management**: Tokens expire after 1 hour by default; use refresh tokens for longer sessions
+
+### Database Security
+- **Row Level Security (RLS)**: Always enable RLS on your Supabase tables
+- **Least Privilege**: Grant users only the minimum permissions they need
+- **Input Validation**: All API inputs are validated using Pydantic models
+- **SQL Injection Protection**: The Supabase client provides built-in protection
+
+### API Security Headers
+The application includes security headers:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `X-XSS-Protection: 1; mode=block`
+- `Strict-Transport-Security` (in production)
+
+### Common Usage Patterns
+
+#### Protecting Routes
+```python
+from fastapi import Depends
+from app.api.middleware.auth import get_current_user
+from app.models.user import UserResponse
+
+@app.get("/protected-endpoint")
+async def protected_route(current_user: UserResponse = Depends(get_current_user)):
+    return {"message": f"Hello {current_user.full_name}!"}
+```
+
+#### Database Operations with User Context
+```python
+from app.db.supabase import get_supabase_client
+
+async def create_user_data(user_id: str, data: dict):
+    supabase = await get_supabase_client()
+    result = supabase.table('user_data').insert({
+        'user_id': user_id,
+        **data
+    }).execute()
+    return result.data
+```
+
+#### Error Handling
+```python
+from app.services.auth import AuthenticationError
+
+try:
+    user = await authenticate_user(token)
+except AuthenticationError as e:
+    raise HTTPException(status_code=401, detail=str(e))
+```
+{{/if}}
+{{/if}}
