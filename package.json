@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A minimal command-line tool to quickly scaffold FastAPI projects with Poetry configuration",
   "main": "src/cli.js",
+  
   "bin": {
     "superfastapi": "./bin/superfastapi.js"
   },
@@ -21,27 +22,28 @@
     "scaffold",
     "poetry"
   ],
-  "author": "",
-  "license": "MIT",
+  "author": "Mohd Mursaleen <mohdmursaleen1207@example.com>",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/Mohd-Mursaleen/SuperFastAPI.git"
   },
   "bugs": {
-    "url": ""
+    "url": "https://github.com/Mohd-Mursaleen/SuperFastAPI/issues"
   },
-  "homepage": "",
+  "homepage": "https://github.com/Mohd-Mursaleen/SuperFastAPI#readme",
+
   "engines": {
     "node": ">=14.0.0"
   },
   "dependencies": {
+    "chalk": "^4.1.2",
     "commander": "^11.0.0",
     "handlebars": "^4.7.8",
-    "chalk": "^4.1.2"
+    "inquirer": "^8.2.7"
   },
   "devDependencies": {
-    "jest": "^29.0.0",
     "eslint": "^8.0.0",
+    "jest": "^29.0.0",
     "prettier": "^3.0.0"
   },
   "files": [

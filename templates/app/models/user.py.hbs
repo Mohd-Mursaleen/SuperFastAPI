@@ -1,0 +1,240 @@
+{{#if SUPABASE_AUTH}}
+"""
+User models and schemas for Supabase authentication.
+Provides Pydantic models for user data validation and serialization.
+"""
+
+from typing import Optional, Dict, Any
+from datetime import datetime
+from pydantic import BaseModel, EmailStr, Field, validator
+import re
+
+
+class UserBase(BaseModel):
+    """Base user model with common fields."""
+    email: EmailStr = Field(..., description="User email address")
+    full_name: Optional[str] = Field(None, max_length=100, description="User full name")
+    
+    @validator('full_name')
+    def validate_full_name(cls, v):
+        """Validate full name format."""
+        if v is not None:
+            # Remove extra whitespace
+            v = ' '.join(v.split())
+            
+            # Check for minimum length
+            if len(v.strip()) < 2:
+                raise ValueError('Full name must be at least 2 characters long')
+            
+            # Check for valid characters (letters, spaces, hyphens, apostrophes)
+            if not re.match(r"^[a-zA-Z\s\-']+$", v):
+                raise ValueError('Full name can only contain letters, spaces, hyphens, and apostrophes')
+        
+        return v
+
+
+class UserCreate(UserBase):
+    """User creation model with password."""
+    password: str = Field(..., min_length=8, max_length=128, description="User password")
+    
+    @validator('password')
+    def validate_password(cls, v):
+        """Validate password strength."""
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters long')
+        
+        if len(v) > 128:
+            raise ValueError('Password must be less than 128 characters long')
+        
+        # Check for at least one uppercase letter
+        if not re.search(r'[A-Z]', v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        
+        # Check for at least one lowercase letter
+        if not re.search(r'[a-z]', v):
+            raise ValueError('Password must contain at least one lowercase letter')
+        
+        # Check for at least one digit
+        if not re.search(r'\d', v):
+            raise ValueError('Password must contain at least one digit')
+        
+        # Check for at least one special character
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
+            raise ValueError('Password must contain at least one special character')
+        
+        return v
+
+
+class UserUpdate(BaseModel):
+    """User update model for profile changes."""
+    full_name: Optional[str] = Field(None, max_length=100, description="User full name")
+    
+    @validator('full_name')
+    def validate_full_name(cls, v):
+        """Validate full name format."""
+        if v is not None:
+            # Remove extra whitespace
+            v = ' '.join(v.split())
+            
+            # Check for minimum length
+            if len(v.strip()) < 2:
+                raise ValueError('Full name must be at least 2 characters long')
+            
+            # Check for valid characters (letters, spaces, hyphens, apostrophes)
+            if not re.match(r"^[a-zA-Z\s\-']+$", v):
+                raise ValueError('Full name can only contain letters, spaces, hyphens, and apostrophes')
+        
+        return v
+
+
+class UserResponse(UserBase):
+    """User response model for API responses."""
+    id: str = Field(..., description="User unique identifier")
+    created_at: datetime = Field(..., description="User creation timestamp")
+    email_confirmed_at: Optional[datetime] = Field(None, description="Email confirmation timestamp")
+    last_sign_in_at: Optional[datetime] = Field(None, description="Last sign in timestamp")
+    
+    class Config:
+        """Pydantic configuration."""
+        from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
+
+
+class UserInDB(UserResponse):
+    """User model for internal database operations."""
+    # Additional fields that might be stored in database but not exposed in API
+    email_confirmed: bool = Field(default=False, description="Email confirmation status")
+    phone: Optional[str] = Field(None, description="User phone number")
+    avatar_url: Optional[str] = Field(None, description="User avatar URL")
+    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional user metadata")
+    
+    @validator('phone')
+    def validate_phone(cls, v):
+        """Validate phone number format."""
+        if v is not None:
+            # Remove all non-digit characters
+            digits_only = re.sub(r'\D', '', v)
+            
+            # Check for valid length (10-15 digits)
+            if len(digits_only) < 10 or len(digits_only) > 15:
+                raise ValueError('Phone number must be between 10 and 15 digits')
+            
+            # Return formatted phone number
+            return f"+{digits_only}"
+        
+        return v
+    
+    @validator('avatar_url')
+    def validate_avatar_url(cls, v):
+        """Validate avatar URL format."""
+        if v is not None:
+            # Basic URL validation
+            url_pattern = re.compile(
+                r'^https?://'  # http:// or https://
+                r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # domain...
+                r'localhost|'  # localhost...
+                r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
+                r'(?::\d+)?'  # optional port
+                r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+            
+            if not url_pattern.match(v):
+                raise ValueError('Invalid avatar URL format')
+        
+        return v
+
+
+class UserProfile(BaseModel):
+    """User profile model for detailed user information."""
+    id: str = Field(..., description="User unique identifier")
+    email: EmailStr = Field(..., description="User email address")
+    full_name: Optional[str] = Field(None, description="User full name")
+    phone: Optional[str] = Field(None, description="User phone number")
+    avatar_url: Optional[str] = Field(None, description="User avatar URL")
+    email_confirmed: bool = Field(default=False, description="Email confirmation status")
+    created_at: datetime = Field(..., description="User creation timestamp")
+    last_sign_in_at: Optional[datetime] = Field(None, description="Last sign in timestamp")
+    
+    class Config:
+        """Pydantic configuration."""
+        from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
+
+
+class UserSession(BaseModel):
+    """User session model for authentication state."""
+    user: UserResponse = Field(..., description="User information")
+    access_token: str = Field(..., description="JWT access token")
+    refresh_token: str = Field(..., description="JWT refresh token")
+    expires_at: datetime = Field(..., description="Token expiration timestamp")
+    token_type: str = Field(default="bearer", description="Token type")
+    
+    class Config:
+        """Pydantic configuration."""
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
+
+
+class UserStats(BaseModel):
+    """User statistics model for analytics."""
+    user_id: str = Field(..., description="User unique identifier")
+    total_logins: int = Field(default=0, description="Total number of logins")
+    last_login: Optional[datetime] = Field(None, description="Last login timestamp")
+    account_age_days: int = Field(default=0, description="Account age in days")
+    email_verified: bool = Field(default=False, description="Email verification status")
+    
+    class Config:
+        """Pydantic configuration."""
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
+
+
+# Utility functions for user model operations
+def create_user_response(supabase_user: Dict[str, Any]) -> UserResponse:
+    """
+    Convert Supabase user object to UserResponse model.
+    
+    Args:
+        supabase_user: User data from Supabase
+        
+    Returns:
+        UserResponse model instance
+    """
+    return UserResponse(
+        id=supabase_user.get("id"),
+        email=supabase_user.get("email"),
+        full_name=supabase_user.get("user_metadata", {}).get("full_name"),
+        created_at=datetime.fromisoformat(supabase_user.get("created_at", "").replace('Z', '+00:00')),
+        email_confirmed_at=datetime.fromisoformat(supabase_user.get("email_confirmed_at", "").replace('Z', '+00:00')) if supabase_user.get("email_confirmed_at") else None,
+        last_sign_in_at=datetime.fromisoformat(supabase_user.get("last_sign_in_at", "").replace('Z', '+00:00')) if supabase_user.get("last_sign_in_at") else None
+    )
+
+
+def create_user_profile(supabase_user: Dict[str, Any]) -> UserProfile:
+    """
+    Convert Supabase user object to UserProfile model.
+    
+    Args:
+        supabase_user: User data from Supabase
+        
+    Returns:
+        UserProfile model instance
+    """
+    user_metadata = supabase_user.get("user_metadata", {})
+    
+    return UserProfile(
+        id=supabase_user.get("id"),
+        email=supabase_user.get("email"),
+        full_name=user_metadata.get("full_name"),
+        phone=supabase_user.get("phone"),
+        avatar_url=user_metadata.get("avatar_url"),
+        email_confirmed=bool(supabase_user.get("email_confirmed_at")),
+        created_at=datetime.fromisoformat(supabase_user.get("created_at", "").replace('Z', '+00:00')),
+        last_sign_in_at=datetime.fromisoformat(supabase_user.get("last_sign_in_at", "").replace('Z', '+00:00')) if supabase_user.get("last_sign_in_at") else None
+    )
+{{/if}}

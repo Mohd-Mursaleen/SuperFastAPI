@@ -1,0 +1,352 @@
+{{#if SUPABASE_AUTH}}
+"""
+Authentication service for Supabase integration.
+Provides JWT validation, user session management, and auth utilities.
+"""
+
+from typing import Optional, Dict, Any
+from datetime import datetime, timedelta
+import jwt
+from fastapi import HTTPException, status
+from supabase import Client
+from app.db.supabase import get_supabase_client
+from app.core.config import settings
+from app.models.user import UserResponse, UserCreate
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class AuthenticationError(Exception):
+    """Custom exception for authentication errors."""
+    def __init__(self, message: str, code: Optional[str] = None):
+        self.message = message
+        self.code = code
+        super().__init__(self.message)
+
+
+class AuthService:
+    """Modern Supabase authentication service with JWT validation."""
+    
+    def __init__(self):
+        self.supabase: Optional[Client] = None
+    
+    async def get_client(self) -> Client:
+        """Get Supabase client instance."""
+        if not self.supabase:
+            self.supabase = await get_supabase_client()
+        return self.supabase
+    
+    async def register_user(self, user_data: UserCreate) -> Dict[str, Any]:
+        """
+        Register a new user with Supabase Auth.
+        
+        Args:
+            user_data: User registration data
+            
+        Returns:
+            Dict containing user data and session info
+            
+        Raises:
+            AuthenticationError: If registration fails
+        """
+        try:
+            client = await self.get_client()
+            
+            response = client.auth.sign_up({
+                "email": user_data.email,
+                "password": user_data.password,
+                "options": {
+                    "data": {
+                        "full_name": user_data.full_name
+                    }
+                }
+            })
+            
+            if response.user is None:
+                raise AuthenticationError("Registration failed", "REGISTRATION_FAILED")
+            
+            logger.info(f"User registered successfully: {user_data.email}")
+            
+            return {
+                "user": response.user,
+                "session": response.session,
+                "message": "Registration successful. Please check your email for verification."
+            }
+            
+        except Exception as e:
+            logger.error(f"Registration error: {str(e)}")
+            if hasattr(e, 'message'):
+                raise AuthenticationError(e.message, "REGISTRATION_ERROR")
+            raise AuthenticationError("Registration failed", "REGISTRATION_ERROR")
+    
+    async def login_user(self, email: str, password: str) -> Dict[str, Any]:
+        """
+        Authenticate user with email and password.
+        
+        Args:
+            email: User email
+            password: User password
+            
+        Returns:
+            Dict containing user data and session info
+            
+        Raises:
+            AuthenticationError: If login fails
+        """
+        try:
+            client = await self.get_client()
+            
+            response = client.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
+            
+            if response.user is None or response.session is None:
+                raise AuthenticationError("Invalid credentials", "INVALID_CREDENTIALS")
+            
+            logger.info(f"User logged in successfully: {email}")
+            
+            return {
+                "user": response.user,
+                "session": response.session,
+                "access_token": response.session.access_token,
+                "refresh_token": response.session.refresh_token
+            }
+            
+        except Exception as e:
+            logger.error(f"Login error: {str(e)}")
+            if hasattr(e, 'message'):
+                raise AuthenticationError(e.message, "LOGIN_ERROR")
+            raise AuthenticationError("Login failed", "LOGIN_ERROR")
+    
+    async def logout_user(self, access_token: str) -> Dict[str, str]:
+        """
+        Logout user and invalidate session.
+        
+        Args:
+            access_token: User's access token
+            
+        Returns:
+            Dict with logout confirmation
+            
+        Raises:
+            AuthenticationError: If logout fails
+        """
+        try:
+            client = await self.get_client()
+            
+            # Set the session for the client
+            client.auth.set_session(access_token, "")
+            
+            response = client.auth.sign_out()
+            
+            logger.info("User logged out successfully")
+            
+            return {"message": "Logout successful"}
+            
+        except Exception as e:
+            logger.error(f"Logout error: {str(e)}")
+            raise AuthenticationError("Logout failed", "LOGOUT_ERROR")
+    
+    async def refresh_token(self, refresh_token: str) -> Dict[str, Any]:
+        """
+        Refresh user session using refresh token.
+        
+        Args:
+            refresh_token: User's refresh token
+            
+        Returns:
+            Dict containing new session info
+            
+        Raises:
+            AuthenticationError: If token refresh fails
+        """
+        try:
+            client = await self.get_client()
+            
+            response = client.auth.refresh_session(refresh_token)
+            
+            if response.session is None:
+                raise AuthenticationError("Token refresh failed", "REFRESH_FAILED")
+            
+            logger.info("Token refreshed successfully")
+            
+            return {
+                "session": response.session,
+                "access_token": response.session.access_token,
+                "refresh_token": response.session.refresh_token
+            }
+            
+        except Exception as e:
+            logger.error(f"Token refresh error: {str(e)}")
+            raise AuthenticationError("Token refresh failed", "REFRESH_ERROR")
+    
+    async def get_user_from_token(self, access_token: str) -> Optional[UserResponse]:
+        """
+        Get user information from access token.
+        
+        Args:
+            access_token: User's access token
+            
+        Returns:
+            UserResponse object or None if invalid
+        """
+        try:
+            client = await self.get_client()
+            
+            # Set the session for the client
+            client.auth.set_session(access_token, "")
+            
+            response = client.auth.get_user()
+            
+            if response.user is None:
+                return None
+            
+            user_data = response.user
+            
+            return UserResponse(
+                id=user_data.id,
+                email=user_data.email,
+                full_name=user_data.user_metadata.get("full_name"),
+                created_at=datetime.fromisoformat(user_data.created_at.replace('Z', '+00:00')),
+                email_confirmed_at=datetime.fromisoformat(user_data.email_confirmed_at.replace('Z', '+00:00')) if user_data.email_confirmed_at else None
+            )
+            
+        except Exception as e:
+            logger.error(f"Get user from token error: {str(e)}")
+            return None
+    
+    async def reset_password(self, email: str) -> Dict[str, str]:
+        """
+        Send password reset email to user.
+        
+        Args:
+            email: User email
+            
+        Returns:
+            Dict with reset confirmation
+            
+        Raises:
+            AuthenticationError: If reset fails
+        """
+        try:
+            client = await self.get_client()
+            
+            response = client.auth.reset_password_email(email)
+            
+            logger.info(f"Password reset email sent to: {email}")
+            
+            return {"message": "Password reset email sent. Please check your inbox."}
+            
+        except Exception as e:
+            logger.error(f"Password reset error: {str(e)}")
+            raise AuthenticationError("Password reset failed", "RESET_ERROR")
+    
+    async def update_password(self, access_token: str, new_password: str) -> Dict[str, str]:
+        """
+        Update user password.
+        
+        Args:
+            access_token: User's access token
+            new_password: New password
+            
+        Returns:
+            Dict with update confirmation
+            
+        Raises:
+            AuthenticationError: If update fails
+        """
+        try:
+            client = await self.get_client()
+            
+            # Set the session for the client
+            client.auth.set_session(access_token, "")
+            
+            response = client.auth.update_user({
+                "password": new_password
+            })
+            
+            if response.user is None:
+                raise AuthenticationError("Password update failed", "UPDATE_FAILED")
+            
+            logger.info("Password updated successfully")
+            
+            return {"message": "Password updated successfully"}
+            
+        except Exception as e:
+            logger.error(f"Password update error: {str(e)}")
+            raise AuthenticationError("Password update failed", "UPDATE_ERROR")
+    
+    async def verify_email(self, token: str, email: str) -> Dict[str, str]:
+        """
+        Verify user email with token.
+        
+        Args:
+            token: Verification token
+            email: User email
+            
+        Returns:
+            Dict with verification confirmation
+            
+        Raises:
+            AuthenticationError: If verification fails
+        """
+        try:
+            client = await self.get_client()
+            
+            response = client.auth.verify_otp({
+                "email": email,
+                "token": token,
+                "type": "email"
+            })
+            
+            if response.user is None:
+                raise AuthenticationError("Email verification failed", "VERIFICATION_FAILED")
+            
+            logger.info(f"Email verified successfully: {email}")
+            
+            return {"message": "Email verified successfully"}
+            
+        except Exception as e:
+            logger.error(f"Email verification error: {str(e)}")
+            raise AuthenticationError("Email verification failed", "VERIFICATION_ERROR")
+    
+    def validate_jwt_token(self, token: str) -> Optional[Dict[str, Any]]:
+        """
+        Validate JWT token structure (basic validation).
+        
+        Args:
+            token: JWT token to validate
+            
+        Returns:
+            Decoded token payload or None if invalid
+        """
+        try:
+            # Basic JWT structure validation without signature verification
+            # Supabase handles the actual signature verification
+            decoded = jwt.decode(token, options={"verify_signature": False})
+            
+            # Check if token is expired
+            if 'exp' in decoded:
+                exp_timestamp = decoded['exp']
+                if datetime.utcnow().timestamp() > exp_timestamp:
+                    return None
+            
+            return decoded
+            
+        except jwt.InvalidTokenError:
+            return None
+        except Exception as e:
+            logger.error(f"JWT validation error: {str(e)}")
+            return None
+
+
+# Global auth service instance
+auth_service = AuthService()
+
+
+async def get_auth_service() -> AuthService:
+    """Dependency to get auth service instance."""
+    return auth_service
+{{/if}}

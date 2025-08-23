@@ -1,0 +1,137 @@
+{{#if SUPABASE_DATABASE}}
+"""
+Supabase client implementation with modern async patterns.
+Provides connection management, error handling, and singleton pattern.
+"""
+
+from supabase import create_client, Client
+from app.core.config import settings
+from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class SupabaseError(Exception):
+    """Base exception for Supabase operations."""
+    
+    def __init__(self, message: str, code: Optional[str] = None):
+        self.message = message
+        self.code = code
+        super().__init__(self.message)
+
+
+class DatabaseError(SupabaseError):
+    """Exception for database-related errors."""
+    pass
+
+
+class SupabaseClient:
+    """
+    Singleton Supabase client with connection management and error handling.
+    
+    This class provides a centralized way to interact with Supabase,
+    implementing modern async patterns and proper error handling.
+    """
+    
+    _instance: Optional['SupabaseClient'] = None
+    _client: Optional[Client] = None
+    
+    def __new__(cls) -> 'SupabaseClient':
+        """Implement singleton pattern."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    async def connect(self) -> Client:
+        """
+        Create and return Supabase client with latest v2 patterns.
+        
+        Returns:
+            Client: Configured Supabase client instance
+            
+        Raises:
+            DatabaseError: If connection fails or configuration is invalid
+        """
+        if self._client is not None:
+            return self._client
+            
+        try:
+            if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
+                raise DatabaseError(
+                    "Supabase configuration missing. Please check SUPABASE_URL and SUPABASE_ANON_KEY environment variables.",
+                    code="MISSING_CONFIG"
+                )
+            
+            self._client = create_client(
+                settings.SUPABASE_URL,
+                settings.SUPABASE_ANON_KEY
+            )
+            
+            logger.info("Successfully connected to Supabase")
+            return self._client
+            
+        except Exception as e:
+            logger.error(f"Failed to connect to Supabase: {str(e)}")
+            raise DatabaseError(
+                f"Failed to initialize Supabase client: {str(e)}",
+                code="CONNECTION_FAILED"
+            )
+    
+    async def get_client(self) -> Client:
+        """
+        Get or create Supabase client.
+        
+        Returns:
+            Client: Active Supabase client instance
+        """
+        return await self.connect()
+    
+    async def health_check(self) -> bool:
+        """
+        Perform a health check on the Supabase connection.
+        
+        Returns:
+            bool: True if connection is healthy, False otherwise
+        """
+        try:
+            client = await self.get_client()
+            # Perform a simple query to test connection
+            response = client.table('_supabase_health_check').select('*').limit(1).execute()
+            return True
+        except Exception as e:
+            logger.warning(f"Supabase health check failed: {str(e)}")
+            return False
+    
+    def disconnect(self) -> None:
+        """
+        Disconnect from Supabase and reset client instance.
+        Useful for testing or manual connection management.
+        """
+        if self._client:
+            logger.info("Disconnecting from Supabase")
+            self._client = None
+
+
+# Global instance for easy access
+supabase_client = SupabaseClient()
+
+
+async def get_supabase() -> Client:
+    """
+    Dependency function to get Supabase client.
+    
+    This function can be used as a FastAPI dependency to inject
+    the Supabase client into route handlers.
+    
+    Returns:
+        Client: Active Supabase client instance
+        
+    Example:
+        @app.get("/users")
+        async def get_users(supabase: Client = Depends(get_supabase)):
+            response = supabase.table('users').select('*').execute()
+            return response.data
+    """
+    return await supabase_client.get_client()
+{{/if}}

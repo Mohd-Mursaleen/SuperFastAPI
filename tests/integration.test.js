@@ -19,8 +19,8 @@ describe('SuperFastAPI CLI Integration Tests', () => {
   test('should create a complete FastAPI project', async () => {
     const cli = new SuperFastAPICLI();
     
-    // Create the project
-    await cli.createProject(testProjectName);
+    // Create the project with skipPrompts option
+    await cli.createProject(testProjectName, { skipPrompts: true });
     
     // Verify project directory exists
     const projectStats = await fs.stat(testProjectPath);
@@ -61,7 +61,7 @@ describe('SuperFastAPI CLI Integration Tests', () => {
   test('should reject invalid project names', async () => {
     const cli = new SuperFastAPICLI();
     
-    await expect(cli.createProject('invalid name!')).rejects.toThrow(
+    await expect(cli.createProject('invalid name!', { skipPrompts: true })).rejects.toThrow(
       'Project name can only contain letters, numbers, hyphens, and underscores'
     );
   });
@@ -70,11 +70,53 @@ describe('SuperFastAPI CLI Integration Tests', () => {
     const cli = new SuperFastAPICLI();
     
     // Create the project first
-    await cli.createProject(testProjectName);
+    await cli.createProject(testProjectName, { skipPrompts: true });
     
     // Try to create it again
-    await expect(cli.createProject(testProjectName)).rejects.toThrow(
+    await expect(cli.createProject(testProjectName, { skipPrompts: true })).rejects.toThrow(
       `Directory '${testProjectName}' already exists`
     );
+  });
+
+  test('should create project with Supabase options when provided', async () => {
+    const cli = new SuperFastAPICLI();
+    const supabaseProjectName = 'test-supabase-project';
+    const supabaseProjectPath = path.resolve(process.cwd(), supabaseProjectName);
+    
+    try {
+      // Create project with Supabase options
+      await cli.createProject(supabaseProjectName, { 
+        skipPrompts: true, 
+        supabaseDatabase: true, 
+        supabaseAuth: true 
+      });
+      
+      // Verify project directory exists
+      const projectStats = await fs.stat(supabaseProjectPath);
+      expect(projectStats.isDirectory()).toBe(true);
+      
+      // Verify essential files exist
+      const expectedFiles = [
+        'pyproject.toml',
+        'README.md',
+        '.gitignore',
+        'app/__init__.py',
+        'app/main.py',
+        'tests/__init__.py'
+      ];
+      
+      for (const file of expectedFiles) {
+        const filePath = path.join(supabaseProjectPath, file);
+        const fileStats = await fs.stat(filePath);
+        expect(fileStats.isFile()).toBe(true);
+      }
+    } finally {
+      // Clean up
+      try {
+        await fs.rm(supabaseProjectPath, { recursive: true, force: true });
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+    }
   });
 });

@@ -10,10 +10,14 @@ const handlebars = require('handlebars');
  * directory creation, and file generation.
  */
 class ProjectGenerator {
-  constructor(projectName) {
+  constructor(projectName, options = {}) {
     this.projectName = projectName;
     this.projectPath = path.resolve(process.cwd(), projectName);
     this.templatesPath = path.resolve(__dirname, '..', 'templates');
+    
+    // Supabase feature flags
+    this.supabaseDatabase = options.supabaseDatabase || false;
+    this.supabaseAuth = options.supabaseAuth || false;
     
     // Template variables for handlebars rendering
     this.templateVars = {
@@ -22,7 +26,11 @@ class ProjectGenerator {
       AUTHOR_NAME: 'Your Name <your.email@example.com>',
       PYTHON_VERSION: '^3.11',
       FASTAPI_VERSION: '^0.104.1',
-      UVICORN_VERSION: '^0.24.0'
+      UVICORN_VERSION: '^0.24.0',
+      SUPABASE_DATABASE: this.supabaseDatabase,
+      SUPABASE_AUTH: this.supabaseAuth,
+      supabaseDatabase: this.supabaseDatabase,  // For template compatibility
+      supabaseAuth: this.supabaseAuth           // For template compatibility
     };
   }
 
@@ -47,7 +55,21 @@ class ProjectGenerator {
     console.log(chalk.yellow('\n🚀 Next steps:'));
     console.log(chalk.white(`  cd ${this.projectName}`));
     console.log(chalk.white('  poetry install'));
-    console.log(chalk.green('  sh start.sh'));
+    
+    // Add Supabase-specific next steps if features are enabled
+    if (this.supabaseDatabase || this.supabaseAuth) {
+      console.log(chalk.cyan('\n📋 Supabase Configuration:'));
+      console.log(chalk.white('  1. Create a new project at https://supabase.com'));
+      console.log(chalk.white('  2. Copy your project URL and anon key'));
+      console.log(chalk.white('  3. Update the .env file with your Supabase credentials'));
+      
+      if (this.supabaseAuth) {
+        console.log(chalk.white('  4. Copy your service role key for authentication features'));
+        console.log(chalk.white('  5. Configure authentication providers in your Supabase dashboard'));
+      }
+    }
+    
+    console.log(chalk.green('\n  sh start.sh'));
   }
 
   /**
@@ -101,7 +123,7 @@ class ProjectGenerator {
    */
   async generateFromTemplates() {
     try {
-      // Define the project structure to create
+      // Define the base project structure to create
       const projectStructure = [
         // Root level files
         { template: 'pyproject.toml.hbs', output: 'pyproject.toml' },
@@ -125,6 +147,22 @@ class ProjectGenerator {
         // Tests directory and files
         { template: 'tests/__init__.py.hbs', output: 'tests/__init__.py' }
       ];
+
+      // Add Supabase-specific templates based on feature flags
+      if (this.supabaseDatabase) {
+        projectStructure.push(
+          { template: 'app/db/supabase.py.hbs', output: 'app/db/supabase.py' }
+        );
+      }
+
+      if (this.supabaseAuth) {
+        projectStructure.push(
+          { template: 'app/services/auth.py.hbs', output: 'app/services/auth.py' },
+          { template: 'app/api/middleware/auth.py.hbs', output: 'app/api/middleware/auth.py' },
+          { template: 'app/api/routes/auth.py.hbs', output: 'app/api/routes/auth.py' },
+          { template: 'app/models/user.py.hbs', output: 'app/models/user.py' }
+        );
+      }
 
       // Generate each file from its template
       for (const item of projectStructure) {
