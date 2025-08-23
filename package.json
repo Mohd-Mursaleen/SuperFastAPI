@@ -1,5 +1,5 @@
 {
-  "name": "superfastapi",
+  "name": "supfastapi",
   "version": "1.0.0",
   "description": "A minimal command-line tool to quickly scaffold FastAPI projects with Poetry configuration",
   "main": "src/cli.js",
