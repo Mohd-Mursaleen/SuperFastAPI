@@ -94,10 +94,7 @@ Examples:
       
       if (supabaseAuth) {
         console.log(`     - ${chalk.yellow('SUPABASE_SERVICE_ROLE_KEY')} (from Project Settings > API)`);
-      }
-      
-      console.log(`  5. ${chalk.cyan('poetry install')}`);
-      console.log(`  6. ${chalk.cyan('poetry run uvicorn app.main:app --reload')}`);
+      }      
       
       if (supabaseAuth) {
         console.log(chalk.blue('\n🔐 Supabase Authentication Setup:'));

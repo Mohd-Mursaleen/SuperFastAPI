@@ -52,10 +52,11 @@ class ProjectGenerator {
     
     console.log(chalk.yellow(`✅ FastAPI project '${this.projectName}' created successfully!`));
     console.log(chalk.blue(`📁 Project directory: ${this.projectPath}`));
-    console.log(chalk.yellow('\n🚀 Next steps:'));
+    console.log(chalk.yellow('\n Next steps:'));
     console.log(chalk.white(`  cd ${this.projectName}`));
     console.log(chalk.white('  poetry install'));
-    
+    console.log(chalk.green('\n🚀RUN:- sh start.sh OR poetry run uvicorn app.main:app --reload '));
+
     // Add Supabase-specific next steps if features are enabled
     if (this.supabaseDatabase || this.supabaseAuth) {
       console.log(chalk.cyan('\n📋 Supabase Configuration:'));
@@ -69,7 +70,6 @@ class ProjectGenerator {
       }
     }
     
-    console.log(chalk.green('\n  🏃🏻‍♂️sh start.sh'));
   }
 
   /**
