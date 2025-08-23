@@ -1,9 +1,8 @@
 {
   "name": "supfastapi",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A minimal command-line tool to quickly scaffold FastAPI projects with Poetry configuration",
   "main": "src/cli.js",
-  
   "bin": {
     "superfastapi": "./bin/superfastapi.js"
   },
@@ -31,7 +30,6 @@
     "url": "https://github.com/Mohd-Mursaleen/SuperFastAPI/issues"
   },
   "homepage": "https://github.com/Mohd-Mursaleen/SuperFastAPI#readme",
-
   "engines": {
     "node": ">=14.0.0"
   },
