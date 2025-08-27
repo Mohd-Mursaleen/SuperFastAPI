@@ -1,10 +1,48 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.db.supabase import SupabaseClient
+from contextlib import asynccontextmanager
+import sys
+import logging  
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup events
+    try:
+        logger.info("Starting up ...")
+        
+        supabase = SupabaseClient()
+        supabase.initialize_supabase()
+        logger.info("DB initialized successfully")
+    except Exception as e:
+        logger.error(f"Error during startup: {e}")
+        raise
+    
+    yield
+    
+    # Shutdown events
+    try:
+        logger.info("Shutting down ...")
+        
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}") 
 
 app = FastAPI(
     title="{{PROJECT_NAME}}",
     description="{{PROJECT_DESCRIPTION}}",
     version="0.1.0",
+    lifespan=lifespan
 )
 
 # Set up CORS middleware
