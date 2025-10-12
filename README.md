@@ -2,6 +2,8 @@
 
 SuperFastAPI is a project scaffolding tool designed to quickly generate a FastAPI-based backend project with batteries-included features and a modular structure. It leverages templates and a CLI to help you bootstrap production-ready Python web APIs in seconds.
 
+Check it out here: [supfastapi on npm](https://www.npmjs.com/package/supfastapi)
+
 ## Features
 - **CLI Tool**: Easily generate new FastAPI projects from the command line.
 - **Template System**: Uses Handlebars templates for flexible project generation.
