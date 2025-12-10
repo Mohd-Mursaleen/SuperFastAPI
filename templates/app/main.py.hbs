@@ -3,6 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 {{#if SUPABASE_DATABASE}}
 from app.db.supabase import SupabaseClient
 {{/if}}
+{{#if POSTGRES_DATABASE}}
+from app.db.postgres import db_manager, check_db_health
+{{/if}}
 from contextlib import asynccontextmanager
 import sys
 import logging  
@@ -27,10 +30,21 @@ async def lifespan(app: FastAPI):
 {{#if SUPABASE_DATABASE}}
         supabase = SupabaseClient()
         supabase.initialize_supabase()
-        logger.info("DB initialized successfully")
-{{else}}
-        logger.info("Application started successfully")
+        logger.info("Supabase initialized successfully")
 {{/if}}
+{{#if POSTGRES_DATABASE}}
+        # Check database connection
+        if db_manager.check_connection():
+            logger.info("PostgreSQL database connected successfully")
+        else:
+            logger.error("Failed to connect to PostgreSQL database")
+            raise Exception("Database connection failed")
+{{/if}}
+{{#unless SUPABASE_DATABASE}}
+{{#unless POSTGRES_DATABASE}}
+        logger.info("Application started successfully")
+{{/unless}}
+{{/unless}}
     except Exception as e:
         logger.error(f"Error during startup: {e}")
         raise
@@ -70,7 +84,19 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "{{PROJECT_NAME}}"}
+    health_status = {
+        "status": "healthy", 
+        "service": "{{PROJECT_NAME}}",
+        "version": "0.1.0"
+    }
+    
+{{#if POSTGRES_DATABASE}}
+    # Add database health check
+    db_health = check_db_health()
+    health_status["database"] = db_health
+{{/if}}
+    
+    return health_status
 
 
 if __name__ == "__main__":

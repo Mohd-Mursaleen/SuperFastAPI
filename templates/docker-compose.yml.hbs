@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+{{#if POSTGRES_DATABASE}}
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: {{PROJECT_NAME}}_postgres
+    environment:
+      POSTGRES_DB: {{DB_NAME}}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - {{PROJECT_NAME}}_network
+
+{{/if}}
+{{#if INCLUDE_DOCKER}}
+  # FastAPI Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: {{PROJECT_NAME}}_api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+{{#if POSTGRES_DATABASE}}
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/{{DB_NAME}}
+{{/if}}
+{{#if SUPABASE_DATABASE}}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+{{#if SUPABASE_AUTH}}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+{{/if}}
+{{/if}}
+    volumes:
+      - .:/app
+    depends_on:
+{{#if POSTGRES_DATABASE}}
+      postgres:
+        condition: service_healthy
+{{/if}}
+    networks:
+      - {{PROJECT_NAME}}_network
+    restart: unless-stopped
+
+{{/if}}
+{{#if POSTGRES_DATABASE}}
+volumes:
+  postgres_data:
+
+{{/if}}
+networks:
+  {{PROJECT_NAME}}_network:
+    driver: bridge
