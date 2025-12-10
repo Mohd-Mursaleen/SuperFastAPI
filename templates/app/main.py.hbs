@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+{{#if SUPABASE_DATABASE}}
 from app.db.supabase import SupabaseClient
+{{/if}}
 from contextlib import asynccontextmanager
 import sys
 import logging  
@@ -22,9 +24,13 @@ async def lifespan(app: FastAPI):
     try:
         logger.info("Starting up ...")
         
+{{#if SUPABASE_DATABASE}}
         supabase = SupabaseClient()
         supabase.initialize_supabase()
         logger.info("DB initialized successfully")
+{{else}}
+        logger.info("Application started successfully")
+{{/if}}
     except Exception as e:
         logger.error(f"Error during startup: {e}")
         raise
