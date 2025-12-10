@@ -171,7 +171,8 @@ class ProjectGenerator {
           { template: 'alembic.ini.hbs', output: 'alembic.ini' },
           { template: 'alembic/env.py.hbs', output: 'alembic/env.py' },
           { template: 'alembic/script.py.mako.hbs', output: 'alembic/script.py.mako' },
-          { template: 'init.sql.hbs', output: 'init.sql' }
+          { template: 'init.sql.hbs', output: 'init.sql' },
+          { template: 'db.sh.hbs', output: 'db.sh' }
         );
       }
 
@@ -221,6 +222,11 @@ class ProjectGenerator {
       
       // Write the rendered content to the output file
       await fs.writeFile(outputFullPath, renderedContent, 'utf8');
+      
+      // Make shell scripts executable
+      if (outputPath.endsWith('.sh')) {
+        await fs.chmod(outputFullPath, 0o755);
+      }
       
       console.log(chalk.gray(`  ✓ Created ${outputPath}`));
       

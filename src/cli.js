@@ -58,7 +58,7 @@ Examples:
         choices: [
           { name: 'No database setup', value: 'none' },
           { name: 'Supabase (cloud database)', value: 'supabase' },
-          { name: 'PostgreSQL with Docker', value: 'postgres' }
+          { name: 'PostgreSQL (requires Docker)', value: 'postgres' }
         ],
         default: 'none'
       }
@@ -160,7 +160,23 @@ Examples:
       console.log(`  • Default credentials: ${chalk.cyan('postgres/postgres')}`);
       console.log(`  • Database name: ${chalk.cyan(projectName.replace(/[^a-zA-Z0-9]/g, '_'))}`);
       console.log(`  • Review the database configuration in ${chalk.cyan('app/core/config.py')}`);
-      console.log(`  • Run migrations: ${chalk.cyan('poetry run alembic upgrade head')}`);
+      
+      console.log(chalk.blue('\n🔄 Database Migration Workflow:'));
+      console.log(`  • Use the ${chalk.cyan('./db.sh')} script for database management:`);
+      console.log(`    ${chalk.cyan('./db.sh status')} - Check database status`);
+      console.log(`    ${chalk.cyan('./db.sh create "migration_name"')} - Create new migration`);
+      console.log(`    ${chalk.cyan('./db.sh migrate')} - Apply migrations`);
+      console.log(`    ${chalk.cyan('./db.sh current')} - Show current migration`);
+      console.log(`    ${chalk.cyan('./db.sh history')} - Show migration history`);
+      console.log(`    ${chalk.cyan('./db.sh shell')} - Open PostgreSQL shell`);
+      console.log(`    ${chalk.cyan('./db.sh help')} - Show all available commands`);
+      
+      console.log(chalk.blue('\n📝 Migration Steps:'));
+      console.log(`  1. ${chalk.cyan('chmod +x db.sh')} - Make the script executable`);
+      console.log(`  2. ${chalk.cyan('./db.sh status')} - Verify database is running`);
+      console.log(`  3. Create your models in ${chalk.cyan('app/models/')}`);
+      console.log(`  4. ${chalk.cyan('./db.sh create "initial_tables"')} - Generate migration`);
+      console.log(`  5. ${chalk.cyan('./db.sh migrate')} - Apply the migration`);
     }
     
     console.log(chalk.blue('\n📚 Documentation:'));
@@ -207,13 +223,14 @@ Examples:
           supabaseAuth = await this.promptSupabaseAuth();
         }
         
-        // Prompt for Docker setup
-        includeDocker = await this.promptDockerSetup();
-        
-        // If user chose PostgreSQL but declined Docker, show warning
-        if (databaseChoice === 'postgres' && !includeDocker) {
-          console.log(chalk.yellow('⚠️  PostgreSQL setup requires Docker. Docker setup will be included automatically.'));
+        // Handle Docker setup based on database choice
+        if (databaseChoice === 'postgres') {
+          // PostgreSQL automatically includes Docker
           includeDocker = true;
+          console.log(chalk.blue('ℹ️  PostgreSQL setup automatically includes Docker configuration.'));
+        } else {
+          // For 'none' or 'supabase', ask if they want Docker
+          includeDocker = await this.promptDockerSetup();
         }
       }
       

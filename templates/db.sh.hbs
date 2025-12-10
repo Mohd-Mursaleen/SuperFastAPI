@@ -1,0 +1,260 @@
+{{#if POSTGRES_DATABASE}}
+#!/bin/bash
+
+# Database Management Script for {{PROJECT_NAME}}
+# This script provides convenient commands for managing your PostgreSQL database with Alembic
+
+set -e  # Exit on any error
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+# Function to check if PostgreSQL is running
+check_postgres() {
+    if ! docker ps | grep -q "{{PROJECT_NAME}}_postgres"; then
+        print_error "PostgreSQL container is not running!"
+        print_info "Start it with: docker-compose up -d postgres"
+        exit 1
+    fi
+}
+
+# Function to wait for PostgreSQL to be ready
+wait_for_postgres() {
+    print_info "Waiting for PostgreSQL to be ready..."
+    until docker exec {{PROJECT_NAME}}_postgres pg_isready -U postgres > /dev/null 2>&1; do
+        sleep 1
+    done
+    print_success "PostgreSQL is ready!"
+}
+
+# Show help
+show_help() {
+    echo "Database Management Script for {{PROJECT_NAME}}"
+    echo ""
+    echo "Usage: ./db.sh [command]"
+    echo ""
+    echo "Commands:"
+    echo "  init              Initialize Alembic (run once)"
+    echo "  create <name>     Create a new migration"
+    echo "  migrate           Apply all pending migrations"
+    echo "  upgrade           Alias for migrate"
+    echo "  downgrade [rev]   Downgrade to a specific revision (or -1 for previous)"
+    echo "  current           Show current migration revision"
+    echo "  history           Show migration history"
+    echo "  heads             Show current heads"
+    echo "  reset             Reset database (WARNING: destroys all data)"
+    echo "  shell             Open PostgreSQL shell"
+    echo "  logs              Show PostgreSQL logs"
+    echo "  status            Show database status"
+    echo "  help              Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  ./db.sh init"
+    echo "  ./db.sh create \"add user table\""
+    echo "  ./db.sh migrate"
+    echo "  ./db.sh downgrade -1"
+    echo "  ./db.sh shell"
+}
+
+# Initialize Alembic
+init_alembic() {
+    print_info "Initializing Alembic..."
+    if [ -d "alembic/versions" ]; then
+        print_warning "Alembic already initialized!"
+        return
+    fi
+    
+    check_postgres
+    wait_for_postgres
+    
+    poetry run alembic init alembic
+    print_success "Alembic initialized!"
+    print_info "Edit alembic.ini and alembic/env.py if needed"
+}
+
+# Create a new migration
+create_migration() {
+    if [ -z "$1" ]; then
+        print_error "Migration name is required!"
+        echo "Usage: ./db.sh create \"migration name\""
+        exit 1
+    fi
+    
+    print_info "Creating migration: $1"
+    poetry run alembic revision --autogenerate -m "$1"
+    print_success "Migration created!"
+    print_info "Review the generated migration file in alembic/versions/"
+}
+
+# Apply migrations
+migrate() {
+    print_info "Applying migrations..."
+    check_postgres
+    wait_for_postgres
+    
+    poetry run alembic upgrade head
+    print_success "Migrations applied!"
+}
+
+# Downgrade migrations
+downgrade() {
+    local revision=${1:--1}
+    print_warning "Downgrading to revision: $revision"
+    check_postgres
+    wait_for_postgres
+    
+    poetry run alembic downgrade "$revision"
+    print_success "Downgrade completed!"
+}
+
+# Show current revision
+current_revision() {
+    print_info "Current migration revision:"
+    poetry run alembic current
+}
+
+# Show migration history
+migration_history() {
+    print_info "Migration history:"
+    poetry run alembic history --verbose
+}
+
+# Show current heads
+show_heads() {
+    print_info "Current heads:"
+    poetry run alembic heads
+}
+
+# Reset database (dangerous!)
+reset_database() {
+    print_warning "This will destroy ALL data in the database!"
+    read -p "Are you sure? Type 'yes' to continue: " -r
+    if [[ $REPLY == "yes" ]]; then
+        print_info "Resetting database..."
+        check_postgres
+        
+        # Drop and recreate database
+        docker exec {{PROJECT_NAME}}_postgres psql -U postgres -c "DROP DATABASE IF EXISTS {{DB_NAME}};"
+        docker exec {{PROJECT_NAME}}_postgres psql -U postgres -c "CREATE DATABASE {{DB_NAME}};"
+        
+        # Run migrations
+        migrate
+        print_success "Database reset completed!"
+    else
+        print_info "Database reset cancelled."
+    fi
+}
+
+# Open PostgreSQL shell
+open_shell() {
+    print_info "Opening PostgreSQL shell..."
+    check_postgres
+    docker exec -it {{PROJECT_NAME}}_postgres psql -U postgres -d {{DB_NAME}}
+}
+
+# Show PostgreSQL logs
+show_logs() {
+    print_info "PostgreSQL logs:"
+    docker logs {{PROJECT_NAME}}_postgres --tail=50 -f
+}
+
+# Show database status
+show_status() {
+    print_info "Database Status:"
+    echo ""
+    
+    # Check if container is running
+    if docker ps | grep -q "{{PROJECT_NAME}}_postgres"; then
+        print_success "PostgreSQL container is running"
+        
+        # Show container info
+        echo "Container Info:"
+        docker ps --filter "name={{PROJECT_NAME}}_postgres"
+        echo ""
+        
+        # Show current migration
+        echo "Current Migration:"
+        poetry run alembic current 2>/dev/null || echo "No migrations applied yet"
+        echo ""
+        
+        # Show database size
+        echo "Database Info:"
+        docker exec {{PROJECT_NAME}}_postgres psql -U postgres -d {{DB_NAME}} -c "
+            SELECT 
+                pg_database.datname as database_name,
+                pg_size_pretty(pg_database_size(pg_database.datname)) as size
+            FROM pg_database 
+            WHERE datname = '{{DB_NAME}}';" 2>/dev/null || echo "Database not accessible"
+    else
+        print_error "PostgreSQL container is not running"
+        print_info "Start it with: docker-compose up -d postgres"
+    fi
+}
+
+# Main script logic
+case "$1" in
+    "init")
+        init_alembic
+        ;;
+    "create")
+        create_migration "$2"
+        ;;
+    "migrate"|"upgrade")
+        migrate
+        ;;
+    "downgrade")
+        downgrade "$2"
+        ;;
+    "current")
+        current_revision
+        ;;
+    "history")
+        migration_history
+        ;;
+    "heads")
+        show_heads
+        ;;
+    "reset")
+        reset_database
+        ;;
+    "shell")
+        open_shell
+        ;;
+    "logs")
+        show_logs
+        ;;
+    "status")
+        show_status
+        ;;
+    "help"|"--help"|"-h"|"")
+        show_help
+        ;;
+    *)
+        print_error "Unknown command: $1"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac
+{{/if}}

@@ -28,7 +28,7 @@ describe('CLI Prompt Functionality', () => {
           choices: [
             { name: 'No database setup', value: 'none' },
             { name: 'Supabase (cloud database)', value: 'supabase' },
-            { name: 'PostgreSQL with Docker', value: 'postgres' }
+            { name: 'PostgreSQL (requires Docker)', value: 'postgres' }
           ],
           default: 'none'
         }
@@ -240,7 +240,7 @@ describe('CLI Prompt Functionality', () => {
           choices: [
             { name: 'No database setup', value: 'none' },
             { name: 'Supabase (cloud database)', value: 'supabase' },
-            { name: 'PostgreSQL with Docker', value: 'postgres' }
+            { name: 'PostgreSQL (requires Docker)', value: 'postgres' }
           ],
           default: 'none'
         }
@@ -266,7 +266,7 @@ describe('CLI Prompt Functionality', () => {
           choices: [
             { name: 'No database setup', value: 'none' },
             { name: 'Supabase (cloud database)', value: 'supabase' },
-            { name: 'PostgreSQL with Docker', value: 'postgres' }
+            { name: 'PostgreSQL (requires Docker)', value: 'postgres' }
           ],
           default: 'none'
         }
@@ -285,12 +285,14 @@ describe('CLI Prompt Functionality', () => {
 
     test('should not prompt for auth when Supabase is not selected', async () => {
       inquirer.prompt
-        .mockResolvedValueOnce({ databaseChoice: 'postgres' })  // Database choice prompt
-        .mockResolvedValueOnce({ includeDocker: true });        // Docker prompt
+        .mockResolvedValueOnce({ databaseChoice: 'postgres' });  // Database choice prompt only
       
       await cli.createProject('test-project');
       
-      expect(inquirer.prompt).toHaveBeenCalledTimes(2);
+      expect(inquirer.prompt).toHaveBeenCalledTimes(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('PostgreSQL setup automatically includes Docker configuration.')
+      );
     });
 
     test('should skip prompts when skipPrompts option is true', async () => {
@@ -341,17 +343,17 @@ describe('CLI Prompt Functionality', () => {
       );
     });
 
-    test('should force Docker when PostgreSQL is selected but Docker is declined', async () => {
+    test('should automatically include Docker when PostgreSQL is selected', async () => {
       jest.spyOn(console, 'log').mockImplementation(() => {});
       
       inquirer.prompt
-        .mockResolvedValueOnce({ databaseChoice: 'postgres' })
-        .mockResolvedValueOnce({ includeDocker: false });
+        .mockResolvedValueOnce({ databaseChoice: 'postgres' });
       
       await cli.createProject('test-project');
       
+      expect(inquirer.prompt).toHaveBeenCalledTimes(1);
       expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('PostgreSQL setup requires Docker. Docker setup will be included automatically.')
+        expect.stringContaining('PostgreSQL setup automatically includes Docker configuration.')
       );
     });
   });
@@ -401,19 +403,22 @@ describe('CLI Prompt Functionality', () => {
       expect(calls[2][0][0].name).toBe('includeDocker');
     });
 
-    test('should follow correct flow: postgres=true, no auth prompt', async () => {
+    test('should follow correct flow: postgres=true, no auth prompt, no Docker prompt', async () => {
       inquirer.prompt
-        .mockResolvedValueOnce({ databaseChoice: 'postgres' })
-        .mockResolvedValueOnce({ includeDocker: true });
+        .mockResolvedValueOnce({ databaseChoice: 'postgres' });
       
       await cli.createProject('test-project');
       
-      expect(inquirer.prompt).toHaveBeenCalledTimes(2);
+      expect(inquirer.prompt).toHaveBeenCalledTimes(1);
       
-      // Verify prompts were called in correct order
+      // Verify only database choice prompt was called
       const calls = inquirer.prompt.mock.calls;
       expect(calls[0][0][0].name).toBe('databaseChoice');
-      expect(calls[1][0][0].name).toBe('includeDocker');
+      
+      // Verify Docker is automatically included
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('PostgreSQL setup automatically includes Docker configuration.')
+      );
     });
   });
 });

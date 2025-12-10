@@ -106,7 +106,8 @@ describe('CLI Completion Messages', () => {
     expect(logCalls.some(call => call.includes('🗄️  PostgreSQL Database Setup:'))).toBe(true);
     expect(logCalls.some(call => call.includes('localhost:5432'))).toBe(true);
     expect(logCalls.some(call => call.includes('postgres/postgres'))).toBe(true);
-    expect(logCalls.some(call => call.includes('alembic upgrade head'))).toBe(true);
+    expect(logCalls.some(call => call.includes('./db.sh'))).toBe(true);
+    expect(logCalls.some(call => call.includes('🔄 Database Migration Workflow:'))).toBe(true);
     
     // Check for Docker instructions
     expect(logCalls.some(call => call.includes('🐳 Docker Setup:'))).toBe(true);
