@@ -1,71 +1,231 @@
 # SuperFastAPI
 
-SuperFastAPI is a project scaffolding tool designed to quickly generate a FastAPI-based backend project with batteries-included features and a modular structure. It leverages templates and a CLI to help you bootstrap production-ready Python web APIs in seconds.
+[![npm version](https://badge.fury.io/js/superfastapi.svg)](https://www.npmjs.com/package/supfastapi)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Features
-- **CLI Tool**: Easily generate new FastAPI projects from the command line.
-- **Template System**: Uses Handlebars templates for flexible project generation.
-- **Modular Structure**: Includes pre-built modules for authentication, database integration (Supabase), configuration, and more.
-- **Best Practices**: Follows modern Python and FastAPI best practices for project layout and code organization.
-- **Extensible**: Add or customize templates to fit your needs.
+A powerful command-line tool for generating production-ready FastAPI projects with modern Python best practices. SuperFastAPI helps developers quickly scaffold FastAPI applications with optional database integration, authentication, Docker support, and more.
 
-## Project Structure
-```
-SuperFastAPI/
-├── bin/
-│   └── superfastapi.js         # CLI entry point
-├── src/
-│   ├── cli.js                  # CLI logic
-│   ├── generator.js            # Project generator logic
-│   └── ...
-├── templates/                  # Handlebars templates for project files
-│   ├── example.env.hbs
-│   ├── pyproject.toml.hbs
-│   ├── README.md.hbs
-│   ├── start.sh.hbs
-│   └── app/                    # FastAPI app templates
-│       └── ...
-├── tests/                      # Unit and integration tests
-├── package.json                # Node.js project metadata
-└── ...
-```
+## ✨ Features
 
-## Getting Started
+- **🚀 Quick Setup**: Generate a complete FastAPI project in seconds
+- **🗄️ Database Options**: Choose between PostgreSQL (with Docker), Supabase, or no database
+- **🔐 Authentication**: Optional Supabase authentication integration
+- **🐳 Docker Ready**: Optional Docker and docker-compose configuration
+- **📦 Poetry Integration**: Modern Python dependency management with Poetry
+- **🔧 CRUD Operations**: Pre-built CRUD directory structure for PostgreSQL projects
+- **🧪 Migration Support**: Alembic integration for database migrations
+- **⚡ Database Scripts**: Automated `db.sh` script for database management
+- **📝 Well Documented**: Generated projects include comprehensive documentation
+- **🎯 Best Practices**: Follows FastAPI and Python best practices
 
-### Prerequisites
-- Node.js (for running the CLI)
-- Python 3.8+ (for generated FastAPI projects)
+## 📋 Requirements
+
+- **Node.js** 14+ (for running the CLI)
+- **Python** 3.11+ (for generated projects)
+- **Poetry** (for Python dependency management)
+- **Docker** (optional, for PostgreSQL database)
+
+## 🚀 Quick Start
 
 ### Installation
-Clone this repository and install dependencies:
+
+Install SuperFastAPI globally via npm:
+
 ```bash
-git clone https://github.com/Mohd-Mursaleen/SuperFastAPI.git
-cd SuperFastAPI
-npm install
+npm install -g supfastapi
 ```
 
-### Usage
-To generate a new FastAPI project, run:
-```bash
-npx supfastapi <project-name>
-```
-Or, if installed globally:
-```bash
-supfastapi <project-name>
-```
-Follow the CLI prompts to customize your project.
+Or use it directly with npx (no installation required):
 
-## Templates
-All project files are generated from Handlebars templates in the `templates/` directory. You can modify or add templates to customize the generated projects.
+```bash
+npx supfastapi my-api-project
+```
 
-## Testing
-Run tests with:
+### Basic Usage
+
+Create a new FastAPI project:
+
+```bash
+superfastapi my-awesome-api
+```
+
+The CLI will guide you through the setup process with interactive prompts:
+
+1. **Database Setup**: Choose your database option
+   - No database setup
+   - Supabase (cloud database)
+   - PostgreSQL (requires Docker)
+
+2. **Authentication**: Enable Supabase authentication (if using Supabase)
+
+3. **Docker Setup**: Include Docker configuration files
+
+## 🗄️ Database Options
+
+### PostgreSQL with Docker
+
+When you select PostgreSQL, SuperFastAPI automatically includes:
+
+- **Docker Configuration**: `Dockerfile`, `docker-compose.yml`, `.dockerignore`
+- **Database Client**: SQLAlchemy setup with PostgreSQL
+- **Migrations**: Alembic configuration for database migrations
+- **CRUD Operations**: Pre-built CRUD directory structure
+- **Database Management**: `db.sh` script for common database operations
+
+### Supabase Integration
+
+Supabase option provides:
+
+- **Database Client**: Supabase Python client setup
+- **Authentication**: Optional JWT-based authentication system
+- **Environment Configuration**: Pre-configured environment variables
+- **API Routes**: Ready-to-use authentication endpoints
+
+## 📁 Generated Project Structure
+
+```
+my-awesome-api/
+├── app/
+│   ├── __init__.py
+│   ├── main.py                 # FastAPI application entry point
+│   ├── core/
+│   │   ├── __init__.py
+│   │   └── config.py           # Application configuration
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── routes/             # API route handlers
+│   │   ├── schemas/            # Pydantic models
+│   │   └── middleware/         # Custom middleware
+│   ├── db/
+│   │   ├── __init__.py
+│   │   └── postgres.py         # Database connection (if PostgreSQL)
+│   ├── crud/                   # CRUD operations (PostgreSQL only)
+│   │   └── __init__.py
+│   ├── models/                 # Database models
+│   ├── services/               # Business logic
+│   └── utils/                  # Utility functions
+├── tests/
+│   └── __init__.py
+├── alembic/                    # Database migrations (PostgreSQL only)
+├── docker-compose.yml          # Docker services (if Docker enabled)
+├── Dockerfile                  # Application container (if Docker enabled)
+├── db.sh                       # Database management script (PostgreSQL only)
+├── pyproject.toml              # Poetry configuration
+├── example.env                 # Environment variables template
+├── start.sh                    # Application startup script
+└── README.md                   # Project documentation
+```
+
+## 🐳 Docker Usage (PostgreSQL Projects)
+
+For projects with PostgreSQL, use these commands:
+
+```bash
+# Start PostgreSQL database only
+docker-compose up -d postgres
+
+# Install Python dependencies
+poetry install
+
+# Run database migrations
+./db.sh migrate
+
+# Start the FastAPI application
+poetry run uvicorn app.main:app --reload
+```
+
+## 🔧 Database Management (PostgreSQL)
+
+The generated `db.sh` script provides convenient database operations:
+
+```bash
+# Check database status
+./db.sh status
+
+# Create a new migration
+./db.sh create "add_users_table"
+
+# Apply migrations
+./db.sh migrate
+
+# Show current migration
+./db.sh current
+
+# Show migration history
+./db.sh history
+
+# Open PostgreSQL shell
+./db.sh shell
+
+# Show all available commands
+./db.sh help
+```
+
+## 🔐 Environment Configuration
+
+Generated projects include an `example.env` file. Copy it to `.env` and configure:
+
+```bash
+cp example.env .env
+```
+
+### PostgreSQL Configuration
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/my_awesome_api
+```
+
+### Supabase Configuration
+```env
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key  # For auth features
+```
+
+## 📖 Examples
+
+### Create a basic API project
+```bash
+superfastapi basic-api
+# Select: No database setup
+# Select: No Docker setup
+```
+
+### Create a project with PostgreSQL and Docker
+```bash
+superfastapi postgres-api
+# Select: PostgreSQL (requires Docker)
+# Docker setup is automatically included
+```
+
+### Create a project with Supabase authentication
+```bash
+superfastapi supabase-api
+# Select: Supabase (cloud database)
+# Select: Yes for authentication
+# Select: Yes/No for Docker setup
+```
+
+## 🧪 Development
+
+### Running Tests
+
 ```bash
 npm test
 ```
 
-## Contributing
-Contributions are welcome! Please open issues or pull requests for bug fixes, features, or improvements.
+## 🤝 Contributing
 
-## License
-MIT License
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for detailed information on how to contribute to this project.
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 📞 Support
+
+- 📧 Email: mohdmursaleen1207@gmail.com
+- 🐛 Issues: [GitHub Issues](https://github.com/Mohd-Mursaleen/SuperFastAPI/issues)
+
+---
+
+**Made with ❤️ for the FastAPI community**
