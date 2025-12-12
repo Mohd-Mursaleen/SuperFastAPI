@@ -15,11 +15,13 @@ describe('Template Generation Integration Tests', () => {
     }
   });
 
-  describe('Basic project generation (no Supabase)', () => {
-    test('should generate correct file structure without Supabase features', async () => {
+  describe('Basic project generation (no database, no Docker)', () => {
+    test('should generate correct file structure without database or Docker features', async () => {
       const generator = new ProjectGenerator(testProjectName, {
         supabaseDatabase: false,
-        supabaseAuth: false
+        supabaseAuth: false,
+        postgresDatabase: false,
+        includeDocker: false
       });
       
       await generator.generate();
@@ -51,20 +53,38 @@ describe('Template Generation Integration Tests', () => {
         expect(fileStats.isFile()).toBe(true);
       }
       
-      // Verify Supabase-specific files are NOT created
-      const supabaseFiles = [
+      // Verify database-specific files are NOT created
+      const databaseFiles = [
         'app/db/supabase.py',
+        'app/db/postgres.py',
         'app/services/auth.py',
         'app/api/middleware/auth.py',
         'app/api/routes/auth.py',
         'app/models/user.py'
       ];
       
-      for (const file of supabaseFiles) {
+      for (const file of databaseFiles) {
         const filePath = path.join(testProjectPath, file);
         try {
           await fs.stat(filePath);
-          fail(`File ${file} should not exist when Supabase features are disabled`);
+          fail(`File ${file} should not exist when database features are disabled`);
+        } catch (error) {
+          expect(error.code).toBe('ENOENT');
+        }
+      }
+      
+      // Verify Docker files are NOT created
+      const dockerFiles = [
+        'Dockerfile',
+        'docker-compose.yml',
+        '.dockerignore'
+      ];
+      
+      for (const file of dockerFiles) {
+        const filePath = path.join(testProjectPath, file);
+        try {
+          await fs.stat(filePath);
+          fail(`File ${file} should not exist when Docker is disabled`);
         } catch (error) {
           expect(error.code).toBe('ENOENT');
         }
@@ -74,7 +94,9 @@ describe('Template Generation Integration Tests', () => {
     test('should generate templates with correct variables for basic project', async () => {
       const generator = new ProjectGenerator(testProjectName, {
         supabaseDatabase: false,
-        supabaseAuth: false
+        supabaseAuth: false,
+        postgresDatabase: false,
+        includeDocker: false
       });
       
       await generator.generate();
@@ -109,7 +131,9 @@ describe('Template Generation Integration Tests', () => {
     test('should generate correct file structure with database only', async () => {
       const generator = new ProjectGenerator(testProjectName, {
         supabaseDatabase: true,
-        supabaseAuth: false
+        supabaseAuth: false,
+        postgresDatabase: false,
+        includeDocker: false
       });
       
       await generator.generate();
@@ -151,7 +175,9 @@ describe('Template Generation Integration Tests', () => {
     test('should generate templates with correct Supabase database variables', async () => {
       const generator = new ProjectGenerator(testProjectName, {
         supabaseDatabase: true,
-        supabaseAuth: false
+        supabaseAuth: false,
+        postgresDatabase: false,
+        includeDocker: false
       });
       
       await generator.generate();
@@ -191,11 +217,122 @@ describe('Template Generation Integration Tests', () => {
     });
   });
 
+  describe('PostgreSQL database generation', () => {
+    test('should generate correct file structure with PostgreSQL', async () => {
+      const generator = new ProjectGenerator(testProjectName, {
+        supabaseDatabase: false,
+        supabaseAuth: false,
+        postgresDatabase: true,
+        includeDocker: true
+      });
+      
+      await generator.generate();
+      
+      // Verify PostgreSQL-specific files are created
+      const postgresFiles = [
+        'app/db/postgres.py',
+        'app/crud/__init__.py',
+        'alembic.ini',
+        'alembic/env.py',
+        'alembic/script.py.mako',
+        'init.sql'
+      ];
+      
+      for (const file of postgresFiles) {
+        const filePath = path.join(testProjectPath, file);
+        const fileStats = await fs.stat(filePath);
+        expect(fileStats.isFile()).toBe(true);
+      }
+      
+      // Verify Docker files are created
+      const dockerFiles = [
+        'Dockerfile',
+        'docker-compose.yml',
+        '.dockerignore'
+      ];
+      
+      for (const file of dockerFiles) {
+        const filePath = path.join(testProjectPath, file);
+        const fileStats = await fs.stat(filePath);
+        expect(fileStats.isFile()).toBe(true);
+      }
+    });
+
+    test('should generate templates with correct PostgreSQL variables', async () => {
+      const generator = new ProjectGenerator(testProjectName, {
+        supabaseDatabase: false,
+        supabaseAuth: false,
+        postgresDatabase: true,
+        includeDocker: true
+      });
+      
+      await generator.generate();
+      
+      // Check pyproject.toml includes PostgreSQL dependency
+      const pyprojectContent = await fs.readFile(
+        path.join(testProjectPath, 'pyproject.toml'), 
+        'utf8'
+      );
+      expect(pyprojectContent).toContain('psycopg2-binary');
+      
+      // Check example.env includes database variables
+      const envContent = await fs.readFile(
+        path.join(testProjectPath, 'example.env'), 
+        'utf8'
+      );
+      expect(envContent).toContain('DATABASE_URL');
+      expect(envContent).toContain('postgresql://');
+      
+      // Check config.py includes PostgreSQL settings
+      const configContent = await fs.readFile(
+        path.join(testProjectPath, 'app/core/config.py'), 
+        'utf8'
+      );
+      expect(configContent).toContain('database_url');
+      
+      // Check PostgreSQL client file exists and has correct content
+      const postgresContent = await fs.readFile(
+        path.join(testProjectPath, 'app/db/postgres.py'), 
+        'utf8'
+      );
+      expect(postgresContent).toContain('from sqlalchemy import create_engine');
+      expect(postgresContent).toContain('class DatabaseManager');
+    });
+  });
+
+  describe('Docker only generation', () => {
+    test('should generate Docker files without database', async () => {
+      const generator = new ProjectGenerator(testProjectName, {
+        supabaseDatabase: false,
+        supabaseAuth: false,
+        postgresDatabase: false,
+        includeDocker: true
+      });
+      
+      await generator.generate();
+      
+      // Verify Docker files are created
+      const dockerFiles = [
+        'Dockerfile',
+        'docker-compose.yml',
+        '.dockerignore'
+      ];
+      
+      for (const file of dockerFiles) {
+        const filePath = path.join(testProjectPath, file);
+        const fileStats = await fs.stat(filePath);
+        expect(fileStats.isFile()).toBe(true);
+      }
+    });
+  });
+
   describe('Supabase authentication only generation', () => {
     test('should generate correct file structure with auth only', async () => {
       const generator = new ProjectGenerator(testProjectName, {
         supabaseDatabase: false,
-        supabaseAuth: true
+        supabaseAuth: true,
+        postgresDatabase: false,
+        includeDocker: false
       });
       
       await generator.generate();
@@ -228,7 +365,9 @@ describe('Template Generation Integration Tests', () => {
     test('should generate templates with correct auth variables', async () => {
       const generator = new ProjectGenerator(testProjectName, {
         supabaseDatabase: false,
-        supabaseAuth: true
+        supabaseAuth: true,
+        postgresDatabase: false,
+        includeDocker: false
       });
       
       await generator.generate();
@@ -288,7 +427,9 @@ describe('Template Generation Integration Tests', () => {
     test('should generate correct file structure with both database and auth', async () => {
       const generator = new ProjectGenerator(testProjectName, {
         supabaseDatabase: true,
-        supabaseAuth: true
+        supabaseAuth: true,
+        postgresDatabase: false,
+        includeDocker: false
       });
       
       await generator.generate();
@@ -312,7 +453,9 @@ describe('Template Generation Integration Tests', () => {
     test('should generate templates with all Supabase variables', async () => {
       const generator = new ProjectGenerator(testProjectName, {
         supabaseDatabase: true,
-        supabaseAuth: true
+        supabaseAuth: true,
+        postgresDatabase: false,
+        includeDocker: false
       });
       
       await generator.generate();
@@ -361,7 +504,9 @@ describe('Template Generation Integration Tests', () => {
       try {
         const generator = new ProjectGenerator(customProjectName, {
           supabaseDatabase: true,
-          supabaseAuth: true
+          supabaseAuth: true,
+          postgresDatabase: false,
+          includeDocker: false
         });
         
         await generator.generate();
@@ -400,7 +545,9 @@ describe('Template Generation Integration Tests', () => {
     test('should correctly substitute Supabase feature flags in templates', async () => {
       const generator = new ProjectGenerator(testProjectName, {
         supabaseDatabase: true,
-        supabaseAuth: false
+        supabaseAuth: false,
+        postgresDatabase: false,
+        includeDocker: false
       });
       
       await generator.generate();
@@ -424,7 +571,9 @@ describe('Template Generation Integration Tests', () => {
     test('should create all necessary directories', async () => {
       const generator = new ProjectGenerator(testProjectName, {
         supabaseDatabase: true,
-        supabaseAuth: true
+        supabaseAuth: true,
+        postgresDatabase: false,
+        includeDocker: false
       });
       
       await generator.generate();
@@ -454,7 +603,9 @@ describe('Template Generation Integration Tests', () => {
     test('should create directories even when only some features are enabled', async () => {
       const generator = new ProjectGenerator(testProjectName, {
         supabaseDatabase: false,
-        supabaseAuth: true
+        supabaseAuth: true,
+        postgresDatabase: false,
+        includeDocker: false
       });
       
       await generator.generate();
@@ -480,7 +631,9 @@ describe('Template Generation Integration Tests', () => {
       // Create a generator with invalid template variables
       const generator = new ProjectGenerator('', {  // Empty project name should cause issues
         supabaseDatabase: true,
-        supabaseAuth: true
+        supabaseAuth: true,
+        postgresDatabase: false,
+        includeDocker: false
       });
       
       await expect(generator.generate()).rejects.toThrow();
@@ -489,7 +642,9 @@ describe('Template Generation Integration Tests', () => {
     test('should handle file system errors gracefully', async () => {
       const generator = new ProjectGenerator(testProjectName, {
         supabaseDatabase: true,
-        supabaseAuth: true
+        supabaseAuth: true,
+        postgresDatabase: false,
+        includeDocker: false
       });
       
       // Create the project directory first to cause a conflict

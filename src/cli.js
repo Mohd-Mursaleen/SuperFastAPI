@@ -46,19 +46,24 @@ Examples:
   }
 
   /**
-   * Prompt user for Supabase database integration
-   * @returns {Promise<boolean>} Whether to include Supabase database integration
+   * Prompt user for database setup choice
+   * @returns {Promise<string>} Database choice: 'none', 'supabase', or 'postgres'
    */
-  async promptSupabaseDatabase() {
-    const { includeDatabase } = await inquirer.prompt([
+  async promptDatabaseChoice() {
+    const { databaseChoice } = await inquirer.prompt([
       {
-        type: 'confirm',
-        name: 'includeDatabase',
-        message: 'Do you want to include Supabase database integration?',
-        default: false
+        type: 'list',
+        name: 'databaseChoice',
+        message: 'Choose your database setup:',
+        choices: [
+          { name: 'No database setup', value: 'none' },
+          { name: 'Supabase (cloud database)', value: 'supabase' },
+          { name: 'PostgreSQL (requires Docker)', value: 'postgres' }
+        ],
+        default: 'none'
       }
     ]);
-    return includeDatabase;
+    return databaseChoice;
   }
 
   /**
@@ -78,17 +83,55 @@ Examples:
   }
 
   /**
+   * Prompt user for Docker setup
+   * @returns {Promise<boolean>} Whether to include Docker setup
+   */
+  async promptDockerSetup() {
+    const { includeDocker } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'includeDocker',
+        message: 'Do you want to include Docker setup (Dockerfile + docker-compose.yml)?',
+        default: false
+      }
+    ]);
+    return includeDocker;
+  }
+
+  /**
    * Display next steps after project creation
    * @param {string} projectName - Name of the created project
-   * @param {boolean} supabaseDatabase - Whether Supabase database integration was included
-   * @param {boolean} supabaseAuth - Whether Supabase authentication was included
+   * @param {Object} options - Project options
+   * @param {string} options.databaseChoice - Database choice: 'none', 'supabase', or 'postgres'
+   * @param {boolean} options.supabaseAuth - Whether Supabase authentication was included
+   * @param {boolean} options.includeDocker - Whether Docker setup was included
    */
-  displayNextSteps(projectName, supabaseDatabase, supabaseAuth) {
+  displayNextSteps(projectName, options) {
+    const { databaseChoice, supabaseAuth, includeDocker } = options;
+    const supabaseDatabase = databaseChoice === 'supabase';
+    const postgresDatabase = databaseChoice === 'postgres';
+    
     console.log(`  2. ${chalk.cyan('cp example.env .env')}`);
     
+    if (includeDocker) {
+      console.log(chalk.blue('\n🐳 Docker Setup:'));
+      if (postgresDatabase) {
+        console.log(`  3. ${chalk.cyan('docker-compose up -d postgres')} - Start PostgreSQL database only`);
+        console.log(`  4. ${chalk.cyan('poetry install')} - Install Python dependencies`);
+        console.log(`  5. ${chalk.cyan('poetry run uvicorn app.main:app --reload')} - Start the API`);
+      } else {
+        console.log(`  3. ${chalk.cyan('docker-compose up --build')} - Build and start the application`);
+        console.log(`  • Or run locally: ${chalk.cyan('poetry install && poetry run uvicorn app.main:app --reload')}`);
+      }
+    } else {
+      console.log(`  3. ${chalk.cyan('poetry install')} - Install dependencies`);
+      console.log(`  4. ${chalk.cyan('poetry run uvicorn app.main:app --reload')} - Start the API`);
+    }
+    
     if (supabaseDatabase || supabaseAuth) {
-      console.log(`  3. ${chalk.cyan('Create a new Supabase project at https://supabase.com/dashboard')}`);
-      console.log(`  4. ${chalk.cyan('Update .env with your Supabase project credentials:')}`);
+      const stepNum = includeDocker ? (postgresDatabase ? '6' : '4') : '5';
+      console.log(`  ${stepNum}. ${chalk.cyan('Create a new Supabase project at https://supabase.com/dashboard')}`);
+      console.log(`  ${parseInt(stepNum) + 1}. ${chalk.cyan('Update .env with your Supabase project credentials:')}`);
       console.log(`     - ${chalk.yellow('SUPABASE_URL')} (from Project Settings > API)`);
       console.log(`     - ${chalk.yellow('SUPABASE_ANON_KEY')} (from Project Settings > API)`);
       
@@ -109,13 +152,43 @@ Examples:
         console.log(`  • Review the database client in ${chalk.cyan('app/db/supabase.py')}`);
         console.log(`  • Configure Row Level Security (RLS) policies as needed`);
       }
-    } 
+    }
+    
+    if (postgresDatabase) {
+      console.log(chalk.blue('\n🗄️  PostgreSQL Database Setup:'));
+      console.log(`  • Database will be available at ${chalk.cyan('localhost:5432')}`);
+      console.log(`  • Default credentials: ${chalk.cyan('postgres/postgres')}`);
+      console.log(`  • Database name: ${chalk.cyan(projectName.replace(/[^a-zA-Z0-9]/g, '_'))}`);
+      console.log(`  • Review the database configuration in ${chalk.cyan('app/core/config.py')}`);
+      
+      console.log(chalk.blue('\n🔄 Database Migration Workflow:'));
+      console.log(`  • Use the ${chalk.cyan('./db.sh')} script for database management:`);
+      console.log(`    ${chalk.cyan('./db.sh status')} - Check database status`);
+      console.log(`    ${chalk.cyan('./db.sh create "migration_name"')} - Create new migration`);
+      console.log(`    ${chalk.cyan('./db.sh migrate')} - Apply migrations`);
+      console.log(`    ${chalk.cyan('./db.sh current')} - Show current migration`);
+      console.log(`    ${chalk.cyan('./db.sh history')} - Show migration history`);
+      console.log(`    ${chalk.cyan('./db.sh shell')} - Open PostgreSQL shell`);
+      console.log(`    ${chalk.cyan('./db.sh help')} - Show all available commands`);
+      
+      console.log(chalk.blue('\n📝 Migration Steps:'));
+      console.log(`  1. ${chalk.cyan('chmod +x db.sh')} - Make the script executable`);
+      console.log(`  2. ${chalk.cyan('./db.sh status')} - Verify database is running`);
+      console.log(`  3. Create your models in ${chalk.cyan('app/models/')}`);
+      console.log(`  4. ${chalk.cyan('./db.sh create "initial_tables"')} - Generate migration`);
+      console.log(`  5. ${chalk.cyan('./db.sh migrate')} - Apply the migration`);
+    }
+    
     console.log(chalk.blue('\n📚 Documentation:'));
     console.log(`  • Check the ${chalk.cyan('README.md')} for detailed setup instructions`);
     console.log(`  • Visit ${chalk.cyan('http://localhost:8000/docs')} for API documentation`);
     
     if (supabaseDatabase || supabaseAuth) {
       console.log(`  • Supabase documentation: ${chalk.cyan('https://supabase.com/docs')}`);
+    }
+    
+    if (includeDocker) {
+      console.log(`  • Docker documentation: ${chalk.cyan('https://docs.docker.com/')}`);
     }
   }
 
@@ -124,36 +197,58 @@ Examples:
    * @param {string} projectName - Name of the project to create
    * @param {Object} options - Options for project creation
    * @param {boolean} options.skipPrompts - Skip interactive prompts (for testing)
-   * @param {boolean} options.supabaseDatabase - Include Supabase database integration
+   * @param {string} options.databaseChoice - Database choice: 'none', 'supabase', or 'postgres'
    * @param {boolean} options.supabaseAuth - Include Supabase authentication
+   * @param {boolean} options.includeDocker - Include Docker setup
    */
   async createProject(projectName, options = {}) {
     try {
       console.log(chalk.blue(`🚀 Creating FastAPI project: ${projectName}`));
       
-      let supabaseDatabase = false;
+      let databaseChoice = 'none';
       let supabaseAuth = false;
+      let includeDocker = false;
       
       if (options.skipPrompts) {
         // Use provided options for testing
-        supabaseDatabase = options.supabaseDatabase || false;
+        databaseChoice = options.databaseChoice || 'none';
         supabaseAuth = options.supabaseAuth || false;
+        includeDocker = options.includeDocker || false;
       } else {
-        // Prompt for Supabase database integration
-        supabaseDatabase = await this.promptSupabaseDatabase();
+        // Prompt for database choice
+        databaseChoice = await this.promptDatabaseChoice();
         
-        // Conditionally prompt for Supabase authentication if database is selected
-        if (supabaseDatabase) {
+        // Conditionally prompt for Supabase authentication if Supabase is selected
+        if (databaseChoice === 'supabase') {
           supabaseAuth = await this.promptSupabaseAuth();
+        }
+        
+        // Handle Docker setup based on database choice
+        if (databaseChoice === 'postgres') {
+          // PostgreSQL automatically includes Docker
+          includeDocker = true;
+          console.log(chalk.blue('ℹ️  PostgreSQL setup automatically includes Docker configuration.'));
+        } else {
+          // For 'none' or 'supabase', ask if they want Docker
+          includeDocker = await this.promptDockerSetup();
         }
       }
       
-      const generator = new ProjectGenerator(projectName, { supabaseDatabase, supabaseAuth });
+      // Convert database choice to legacy format for generator compatibility
+      const supabaseDatabase = databaseChoice === 'supabase';
+      const postgresDatabase = databaseChoice === 'postgres';
+      
+      const generator = new ProjectGenerator(projectName, { 
+        supabaseDatabase, 
+        supabaseAuth, 
+        postgresDatabase,
+        includeDocker 
+      });
       await generator.generate();
       
       
       // Display next steps
-      this.displayNextSteps(projectName, supabaseDatabase, supabaseAuth);
+      this.displayNextSteps(projectName, { databaseChoice, supabaseAuth, includeDocker });
       
     } catch (error) {
       console.error(chalk.red(`❌ Error creating project: ${error.message}`));

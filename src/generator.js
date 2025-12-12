@@ -15,9 +15,11 @@ class ProjectGenerator {
     this.projectPath = path.resolve(process.cwd(), projectName);
     this.templatesPath = path.resolve(__dirname, '..', 'templates');
     
-    // Supabase feature flags
+    // Database feature flags
     this.supabaseDatabase = options.supabaseDatabase || false;
     this.supabaseAuth = options.supabaseAuth || false;
+    this.postgresDatabase = options.postgresDatabase || false;
+    this.includeDocker = options.includeDocker || false;
     
     // Template variables for handlebars rendering
     this.templateVars = {
@@ -29,8 +31,13 @@ class ProjectGenerator {
       UVICORN_VERSION: '^0.24.0',
       SUPABASE_DATABASE: this.supabaseDatabase,
       SUPABASE_AUTH: this.supabaseAuth,
+      POSTGRES_DATABASE: this.postgresDatabase,
+      INCLUDE_DOCKER: this.includeDocker,
       supabaseDatabase: this.supabaseDatabase,  // For template compatibility
-      supabaseAuth: this.supabaseAuth           // For template compatibility
+      supabaseAuth: this.supabaseAuth,          // For template compatibility
+      postgresDatabase: this.postgresDatabase,  // For template compatibility
+      includeDocker: this.includeDocker,        // For template compatibility
+      DB_NAME: projectName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
     };
   }
 
@@ -148,6 +155,28 @@ class ProjectGenerator {
         { template: 'tests/__init__.py.hbs', output: 'tests/__init__.py' }
       ];
 
+      // Add Docker templates if requested
+      if (this.includeDocker) {
+        projectStructure.push(
+          { template: 'Dockerfile.hbs', output: 'Dockerfile' },
+          { template: 'docker-compose.yml.hbs', output: 'docker-compose.yml' },
+          { template: '.dockerignore.hbs', output: '.dockerignore' }
+        );
+      }
+
+      // Add PostgreSQL-specific templates
+      if (this.postgresDatabase) {
+        projectStructure.push(
+          { template: 'app/db/postgres.py.hbs', output: 'app/db/postgres.py' },
+          { template: 'app/crud/__init__.py.hbs', output: 'app/crud/__init__.py' },
+          { template: 'alembic.ini.hbs', output: 'alembic.ini' },
+          { template: 'alembic/env.py.hbs', output: 'alembic/env.py' },
+          { template: 'alembic/script.py.mako.hbs', output: 'alembic/script.py.mako' },
+          { template: 'init.sql.hbs', output: 'init.sql' },
+          { template: 'db.sh.hbs', output: 'db.sh' }
+        );
+      }
+
       // Add Supabase-specific templates based on feature flags
       if (this.supabaseDatabase) {
         projectStructure.push(
@@ -194,6 +223,11 @@ class ProjectGenerator {
       
       // Write the rendered content to the output file
       await fs.writeFile(outputFullPath, renderedContent, 'utf8');
+      
+      // Make shell scripts executable
+      if (outputPath.endsWith('.sh')) {
+        await fs.chmod(outputFullPath, 0o755);
+      }
       
       console.log(chalk.gray(`  ✓ Created ${outputPath}`));
       

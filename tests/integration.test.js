@@ -20,7 +20,12 @@ describe('SuperFastAPI CLI Integration Tests', () => {
     const cli = new SuperFastAPICLI();
     
     // Create the project with skipPrompts option
-    await cli.createProject(testProjectName, { skipPrompts: true });
+    await cli.createProject(testProjectName, { 
+      skipPrompts: true,
+      databaseChoice: 'none',
+      supabaseAuth: false,
+      includeDocker: false
+    });
     
     // Verify project directory exists
     const projectStats = await fs.stat(testProjectPath);
@@ -70,10 +75,20 @@ describe('SuperFastAPI CLI Integration Tests', () => {
     const cli = new SuperFastAPICLI();
     
     // Create the project first
-    await cli.createProject(testProjectName, { skipPrompts: true });
+    await cli.createProject(testProjectName, { 
+      skipPrompts: true,
+      databaseChoice: 'none',
+      supabaseAuth: false,
+      includeDocker: false
+    });
     
     // Try to create it again
-    await expect(cli.createProject(testProjectName, { skipPrompts: true })).rejects.toThrow(
+    await expect(cli.createProject(testProjectName, { 
+      skipPrompts: true,
+      databaseChoice: 'none',
+      supabaseAuth: false,
+      includeDocker: false
+    })).rejects.toThrow(
       `Directory '${testProjectName}' already exists`
     );
   });
@@ -87,8 +102,9 @@ describe('SuperFastAPI CLI Integration Tests', () => {
       // Create project with Supabase options
       await cli.createProject(supabaseProjectName, { 
         skipPrompts: true, 
-        supabaseDatabase: true, 
-        supabaseAuth: true 
+        databaseChoice: 'supabase',
+        supabaseAuth: true,
+        includeDocker: false
       });
       
       // Verify project directory exists

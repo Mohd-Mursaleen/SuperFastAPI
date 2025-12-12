@@ -1,6 +1,6 @@
 {
   "name": "supfastapi",
-  "version": "1.2.2",
+  "version": "2.0.0",
   "description": "A minimal command-line tool to quickly scaffold FastAPI projects with Poetry configuration",
   "main": "src/cli.js",
   "bin": {
@@ -21,7 +21,7 @@
     "scaffold",
     "poetry"
   ],
-  "author": "Mohd Mursaleen <mohdmursaleen1207@example.com>",
+  "author": "Mohd Mursaleen <mohdmursaleen1207@gmail.com>",
   "repository": {
     "type": "git",
     "url": "https://github.com/Mohd-Mursaleen/SuperFastAPI.git"
@@ -48,6 +48,7 @@
     "bin/",
     "src/",
     "templates/",
-    "README.md"
+    "README.md",
+    "CONTRIBUTING.md"
   ]
 }

@@ -6,8 +6,15 @@ class Settings(BaseSettings):
     """Application settings with environment variable support."""
     
     # Application settings
-    app_name: str = "{{projectName}}"
+    app_name: str = "{{PROJECT_NAME}}"
     debug: bool = False
+    environment: str = "development"
+    
+{{#if postgresDatabase}}
+    # PostgreSQL Database settings
+    database_url: str = "postgresql://postgres:postgres@localhost:5432/{{DB_NAME}}"
+    sql_echo: bool = False
+{{/if}}
     
 {{#if supabaseDatabase}}
     # Supabase settings

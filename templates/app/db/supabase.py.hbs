@@ -43,4 +43,18 @@ class SupabaseClient:
         return supabase
 
 
+# Global instance
+_supabase_client = SupabaseClient()
+
+def get_supabase_client() -> Client:
+    """
+    Get the global Supabase client instance.
+    This function is used by other modules to get the client.
+    
+    Returns:
+        Client: Supabase client instance
+    """
+    return _supabase_client.get_supabase_client()
+
+
 {{/if}}
