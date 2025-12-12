@@ -3,7 +3,14 @@
 [![npm version](https://badge.fury.io/js/superfastapi.svg)](https://www.npmjs.com/package/supfastapi)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A powerful command-line tool for generating production-ready FastAPI projects with modern Python best practices. SuperFastAPI helps developers quickly scaffold FastAPI applications with optional database integration, authentication, Docker support, and more.
+Check it out here: [supfastapi on npm](https://www.npmjs.com/package/supfastapi)
+
+## Features
+- **CLI Tool**: Easily generate new FastAPI projects from the command line.
+- **Template System**: Uses Handlebars templates for flexible project generation.
+- **Modular Structure**: Includes pre-built modules for authentication, database integration (Supabase), configuration, and more.
+- **Best Practices**: Follows modern Python and FastAPI best practices for project layout and code organization.
+- **Extensible**: Add or customize templates to fit your needs.
 
 ## ✨ Features
 
