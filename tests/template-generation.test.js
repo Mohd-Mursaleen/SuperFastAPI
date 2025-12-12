@@ -231,6 +231,7 @@ describe('Template Generation Integration Tests', () => {
       // Verify PostgreSQL-specific files are created
       const postgresFiles = [
         'app/db/postgres.py',
+        'app/crud/__init__.py',
         'alembic.ini',
         'alembic/env.py',
         'alembic/script.py.mako',

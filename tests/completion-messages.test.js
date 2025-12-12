@@ -111,7 +111,7 @@ describe('CLI Completion Messages', () => {
     
     // Check for Docker instructions
     expect(logCalls.some(call => call.includes('🐳 Docker Setup:'))).toBe(true);
-    expect(logCalls.some(call => call.includes('docker-compose up -d'))).toBe(true);
+    expect(logCalls.some(call => call.includes('docker-compose up -d postgres'))).toBe(true);
   });
 
   test('should display Docker-only instructions when Docker is selected without database', () => {

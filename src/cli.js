@@ -116,7 +116,7 @@ Examples:
     if (includeDocker) {
       console.log(chalk.blue('\n🐳 Docker Setup:'));
       if (postgresDatabase) {
-        console.log(`  3. ${chalk.cyan('docker-compose up -d')} - Start PostgreSQL database`);
+        console.log(`  3. ${chalk.cyan('docker-compose up -d postgres')} - Start PostgreSQL database only`);
         console.log(`  4. ${chalk.cyan('poetry install')} - Install Python dependencies`);
         console.log(`  5. ${chalk.cyan('poetry run uvicorn app.main:app --reload')} - Start the API`);
       } else {

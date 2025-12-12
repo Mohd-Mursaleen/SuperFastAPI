@@ -168,6 +168,7 @@ class ProjectGenerator {
       if (this.postgresDatabase) {
         projectStructure.push(
           { template: 'app/db/postgres.py.hbs', output: 'app/db/postgres.py' },
+          { template: 'app/crud/__init__.py.hbs', output: 'app/crud/__init__.py' },
           { template: 'alembic.ini.hbs', output: 'alembic.ini' },
           { template: 'alembic/env.py.hbs', output: 'alembic/env.py' },
           { template: 'alembic/script.py.mako.hbs', output: 'alembic/script.py.mako' },
